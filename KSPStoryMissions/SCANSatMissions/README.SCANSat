@@ -1,0 +1,7 @@
+These are very much WIP missions to put mapping satelites in orbit around various moons and planets.
+It's broken up into two parts - one for the Kerbin system (unlocked relatively early) and one for other planets (unlocked much later).
+
+Due to some (current) limitations in KSPStoryMissions it does not require you to actually USE the satelites, nor establish a proper polar orbit,
+you just need to get an orbit in scanning range to get the mission - the rest is up to you, on the upside this means these missions should work well with
+either SCANSat or ISA_MapSAT (though I haven't tested the budget amounts against ISA_MapSAT). 
+With SCANSat this is a good way to earn some science.
