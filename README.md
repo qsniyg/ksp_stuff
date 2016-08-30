@@ -26,6 +26,21 @@ Orbital periods must be given as: dd:hh:mm:ss
 The greater the maximum number of phasing orbits the closer to a perfect placement you are likely to get, but the longer
 you will have to wait while timewarping.
 
+Example:
+`./rtplacer.py 10:02:36:11 22:06:24:01 3 100
+RTPlacer is a tool to help you set up RemoteTech networks.
+Using a single vehicle to set up a number of satelites equidistant from each other in orbit.
+To use raise the AP of the delivery vehicle to match the target orbit but do not circularize.
+Release the first satelite and circularize the orbit. Then enter the orbital periods below.
+The script will calculate how long you must timewarp before releasing the next satelite.
+Then after releasing it, simply warp the same amount for each subsequent satelite.
+
+
+Satelite moves 163 degrees after every launch vehicle orbit
+Closest match is offset 1 degrees after 58 orbits
+Timewarp for: 586 days, 6:58:38
+`
+
 ~~KSPStoryMissions: custom missions for the KSPStoryMissions mod.~~
 ===================================================================
 The mod this was for no longer exists. 
