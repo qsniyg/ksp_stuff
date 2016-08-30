@@ -38,6 +38,7 @@ if __name__ == '__main__':
     nearest = 360
     target = 0
     print "Satelite moves %s degrees after every launch vehicle orbit" %int(degrees_per_orbit)
+    print "Satelites must be %s degrees appart" %int(degs)
     while not done:
         orbits += 1
         satelite_has_moved += degrees_per_orbit

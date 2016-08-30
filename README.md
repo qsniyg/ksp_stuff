@@ -37,6 +37,7 @@ Then after releasing it, simply warp the same amount for each subsequent satelit
 
 
 Satelite moves 163 degrees after every launch vehicle orbit
+Satelites must be 120 degrees appart
 Closest match is offset 1 degrees after 58 orbits
 Timewarp for: 586 days, 6:58:38
 `
