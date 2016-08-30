@@ -5,6 +5,7 @@ Various bits and pieces for KSP
 
 
 rtplacer.py
+===========
 A simple python script which helps build remotetech networks. 
 The idea is that you put all your satelites on one launch vehicle 
 in a lower orbit. Then you raise the AP to the network orbit.
@@ -26,5 +27,6 @@ The greater the maximum number of phasing orbits the closer to a perfect placeme
 you will have to wait while timewarping.
 
 ~~KSPStoryMissions: custom missions for the KSPStoryMissions mod.~~
+===================================================================
 The mod this was for no longer exists. 
 
