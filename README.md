@@ -17,7 +17,9 @@ and as a time.
 If you run the script with no options it will ask you to enter
 the values it needs. Alternatively you can type them on the 
 commandline:
+
 `rtplacer.py <period of LV> <period of first satelite> <number of satelites to place> <maximum number of phasing orbits>`
+
 Orbital periods must be given as: dd:hh:mm:ss
 
 The greater the maximum number of phasing orbits the closer to a perfect placement you are likely to get, but the longer
