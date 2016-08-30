@@ -18,6 +18,8 @@ if __name__ == '__main__':
         M = raw_input("Maximum number of orbits")
     else:
         O1, O2, N, M = sys.argv[1:]
+    print
+    print
     degs = 360/int(N)
     O1 = [int(i) for i in O1.split(':')]
     O2 = [int(i) for i in O2.split(':')]
@@ -35,7 +37,7 @@ if __name__ == '__main__':
     satelite_has_moved = 0
     nearest = 360
     target = 0
-    print "Satelite moves %s degrees after every launch vehicle orbit" %degrees_per_orbit
+    print "Satelite moves %s degrees after every launch vehicle orbit" %int(degrees_per_orbit)
     while not done:
         orbits += 1
         satelite_has_moved += degrees_per_orbit
@@ -45,12 +47,11 @@ if __name__ == '__main__':
         if  difference < nearest:
             nearest = difference
             target = orbits
-        print "After %s LV orbits the satelite has is %s degrees from the AP, which is %s degrees from %s" %(orbits, satelite_has_moved, difference, degs)
         done = orbits == max_orbits or nearest == degs
     if nearest == degs:
         print "Exact match after %s orbits." % target
     else:
-        print "Closest match is offset %s degrees after %s orbits" % (nearest, target)
+        print "Closest match is offset %s degrees after %s orbits" % (int(nearest), target)
     timewarp = timedelta(seconds=target*period1.total_seconds())
     print "Timewarp for:",
     print timewarp  

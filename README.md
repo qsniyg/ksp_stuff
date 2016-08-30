@@ -14,6 +14,14 @@ satelite and release the next.
 RTPlacer will calculate how long you have to warp for and give
 you are result both as number or orbits (of the launch vehicle)
 and as a time.
+If you run the script with no options it will ask you to enter
+the values it needs. Alternatively you can type them on the 
+commandline:
+`rtplacer.py <period of LV> <period of first satelite> <number of satelites to place> <maximum number of phasing orbits>`
+Orbital periods must be given as: dd:hh:mm:ss
+
+The greater the maximum number of phasing orbits the closer to a perfect placement you are likely to get, but the longer
+you will have to wait while timewarping.
 
 ~~KSPStoryMissions: custom missions for the KSPStoryMissions mod.~~
 The mod this was for no longer exists. 
