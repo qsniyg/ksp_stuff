@@ -27,7 +27,9 @@ The greater the maximum number of phasing orbits the closer to a perfect placeme
 you will have to wait while timewarping.
 
 Example:
+
     ./rtplacer.py 10:02:36:11 22:06:24:01 3 100
+
     RTPlacer is a tool to help you set up RemoteTech networks.
     Using a single vehicle to set up a number of satelites equidistant from each other in orbit.
     To use raise the AP of the delivery vehicle to match the target orbit but do not circularize.
