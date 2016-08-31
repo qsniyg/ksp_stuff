@@ -2,7 +2,10 @@
 import sys
 from datetime import  timedelta
 
-
+def ksp_time(seconds):
+    m,s = divmod(seconds,60)
+    h,m = divmod(m,60)
+    return "%dh%02dm%02ds" % (h, m, s)
 
 if __name__ == '__main__':
     print "RTPlacer is a tool to help you set up RemoteTech networks."
@@ -53,9 +56,10 @@ if __name__ == '__main__':
         print "Exact match after %s orbits." % target
     else:
         print "Closest match is offset %s degrees after %s orbits" % (int(nearest), target)
-    timewarp = timedelta(seconds=target*period1.total_seconds())
-    print "Timewarp for:",
-    print timewarp  
+    timewarp = timedelta(seconds=((target*period1.total_seconds())- (period1.total_seconds()/4))).total_seconds()
+
+    print "Timewarp for: %s ( %ss )" %(ksp_time(timewarp), timewarp)
+
 
 
 
