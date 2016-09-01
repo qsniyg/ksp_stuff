@@ -5,7 +5,8 @@ from datetime import  timedelta
 def ksp_time(seconds):
     m,s = divmod(seconds,60)
     h,m = divmod(m,60)
-    return "%dh%02dm%02ds" % (h, m, s)
+    d,h = divmod(h,6)
+    return "%dd%2dh%02dm%02ds" % (d,h, m, s)
 
 if __name__ == '__main__':
     print "RTPlacer is a tool to help you set up RemoteTech networks."
