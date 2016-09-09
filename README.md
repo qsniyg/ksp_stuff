@@ -43,6 +43,20 @@ Example:
     Closest match is offset 1 degrees after 58 orbits
     Timewarp for: 586 days, 6:58:38
 
+mpl_rebalanced
+==============
+A modulemanager patch which changes the stock Mobile Processing Lab to
+rebalance it for a more challenging experience and to promote
+a different usage pattern.
+The lab now weighs a great deal more and costs a lot more, to encourage
+rather building one big lab than many small ones. The science rewards
+from using the lab is fixed at exactly 2 times the science provided
+with no bonusses for the location of the lab. The location of the experiments
+do however influence it. The idea being to promote building a single station,
+which experiment carrying ships can dock with. 
+Completed research can either be transmitted or returned
+However to compensate the much larger lab can seat four kerbals and processing
+data is extremely fast.
 
 ~~KSPStoryMissions: custom missions for the KSPStoryMissions mod.~~
 ===================================================================
