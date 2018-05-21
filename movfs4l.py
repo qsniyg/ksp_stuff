@@ -16,9 +16,10 @@ PREFIX=os.getenv('WINEPREFIX')
 def pathHdlr (p):
 	return p.replace('{PREFIX}', PREFIX)
 
-def unmount(p):
-	if os.system('fusermount -u "%s"' % p):
-		sys.exit(1)
+def unmount(p,pp):
+	os.system('fusermount -u "%s"' % p)
+	os.rmdir(p)
+	shutil.move(PRISTINE,MOUNTPATH)
 
 if __name__ == '__main__':
 	MOUNTPATH=os.path.join(pathHdlr(PATHS['skyrim']),'Data')
@@ -29,12 +30,12 @@ if __name__ == '__main__':
 
 	#Don't create an MO profile named UNMOUNT - or you'll break this functionality
 	if MO_PROFILE == 'UNMOUNT':
-		unmount(MOUNTPATH)
+		unmount(MOUNTPATH,PRISTINE)
 		sys.exit()
 	#Ensure old mounts are cleared
 	if os.system('mount | grep "%s"' % MOUNTPATH) == 0:
 		print ("Previous VFS layer found unmounting")
-		unmount(MOUNTPATH)
+		unmount(MOUNTPATH,PRISTINE)
 	if not os.path.isdir(PRISTINE):
 		#Move the REAL Data directory to Data.real and create a new empty Data directory for mounting on
 		shutil.move(MOUNTPATH, PRISTINE)
