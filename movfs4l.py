@@ -53,12 +53,16 @@ def unvfs(p):
 
 def dirsthatexist(p):
     updirs = {}
-    for item in traverse(p, True):
-        updirs[item.upper()] = item
-    return updirs
+    upfiles = {}
+    for item in traverse(p):
+        if os.path.isdir(item):
+            updirs[item.upper()] = item
+        else:
+            upfiles[item.upper()] = item
+    return updirs, upfiles
 
 def addvfslayer(p,l, log):
-    updirs = dirsthatexist(p)
+    updirs, upfiles = dirsthatexist(p)
     for item in traverse(l, True):
         src = os.path.join(l, item)
         dest = os.path.join(p, item)
@@ -76,6 +80,8 @@ def addvfslayer(p,l, log):
         src = os.path.join(l, item)
         dest = os.path.join(p, item)
         if not os.path.isdir(src):
+            if item.upper() in list(upfiles.keys()):
+                dest = os.path.join(p,upfiles[item.upper()])
             print ('Updating link from "%s" to "%s"' %(src,dest))
             updatelink(src, dest)
             log['links'].append(dest)
