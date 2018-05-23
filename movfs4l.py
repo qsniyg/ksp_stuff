@@ -32,7 +32,7 @@ def updatelink(src, dest, log):
     if os.path.islink(dest):
         os.unlink(dest)
     elif os.path.exists(dest):
-        shutil.move(dest,'%s.UNVFS' %dest)
+        shutil.move(dest,'%s.unvfs' %dest)
         print ('Backing up ',dest)
         log['backups'].append(dest)
     log['links'].insert(0, dest)
@@ -65,7 +65,7 @@ def unvfs(p):
             print ('Removing directory ', d)
             shutil.rmtree(d)
     for b in log.get('backups', []):
-        shutil.move(b,b.replace('.UNVFS',''))
+        shutil.move('%s.unvfs' %b,b)
     log = {'dirs': [], 'links': [], 'backups': []}
     open('movfs4l_log.json','w').write(json.dumps(log, indent=4))
 
