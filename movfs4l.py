@@ -120,7 +120,7 @@ if __name__ == '__main__':
         addvfslayer(DATADIR,modpath, log)
     open('movfs4l_log.json','w').write(json.dumps(log, indent=4))
 
-    print ('VFS layer created. Rerun this script to update. Run "%s UNMOUNT" to shut it down' %sys.argv[0])
+    print ('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' %sys.argv[0])
 
 
 
