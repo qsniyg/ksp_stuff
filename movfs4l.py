@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     print ('Parsing MO mods configuration')
     MODS=pathHdlr(PATHS['mods'])
-    for modpath in [os.path.join(MODS,i[1:]).strip() for i in open(os.path.join(PDIR,'modlist.txt')).readlines() if i.startswith('+')]:
+    for modpath in reversed([os.path.join(MODS,i[1:]).strip() for i in open(os.path.join(PDIR,'modlist.txt')).readlines() if i.startswith('+')]):
         addvfslayer(DATADIR,modpath, log)
     open('movfs4l_log.json','w').write(json.dumps(log, indent=4))
 
