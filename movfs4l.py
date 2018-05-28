@@ -3,13 +3,12 @@ import os
 import sys
 import shutil
 from glob import iglob
-import json
 
 
 PATHS={
     "mods": '{PREFIX}/drive_c/MO/mods',
     "profiles": '{PREFIX}/drive_c/MO/profiles',
-    "skyrim": '{PREFIX}/drive_c/Steam/steamapps/common/Skyrim Special Edition',
+    "gamedir": '{PREFIX}/drive_c/Steam/steamapps/common/Skyrim Special Edition',
     "plugins.txt": '{PREFIX}/drive_c/users/metalpoet/Local Settings/Application Data/Skyrim Special Edition/Plugins.txt'
 }
 #NOTE: If you don't disable the folders under "Desktop Integration" in winecfg the plugins.txt path with be somewhere in your linux home directory instead
@@ -17,89 +16,37 @@ PATHS={
 
 PREFIX=os.getenv('WINEPREFIX')
 
-def traverse(rootDir, dirsonly=False):
-    if not rootDir.endswith('/'):
-        rootDir = '%s/' % rootDir
-    for dirName, subdirList, fileList in os.walk(rootDir):
-        for fname in fileList:
-            if dirsonly:
-                yield dirName.replace(rootDir,'')
-            else:
-                yield os.path.join(dirName.replace(rootDir,''),fname) 
-                
 
-def updatelink(src, dest, log):
+def updatelink(src, dest):
     if os.path.islink(dest):
         os.unlink(dest)
     elif os.path.exists(dest):
         shutil.move(dest,'%s.unvfs' %dest)
         print ('Backing up ',dest)
-        log['backups'].append(dest)
-    log['links'].insert(0, dest)
     print ('Linking "%s" to "%s"' %(src,dest))
     os.symlink(src, dest)
-
-def mktree(root, path, log):
-    tree = root
-    for p in path.split('/'):
-        tree = os.path.join(tree,p)
-        if not os.path.isdir(tree):
-            log['dirs'].insert(0,tree)
-            print ('Creating directory ',tree)
-            os.mkdir(tree)
 
 
 def pathHdlr (p):
     return p.replace('{PREFIX}', PREFIX)
 
 def unvfs(p):
-    if not os.path.exists('movfs4l_log.json'):
-        return
-    log = json.loads(open('movfs4l_log.json').read())
-    for l in log['links']:
-        if os.path.islink(l):
-            print ('Removing symlink ', l)
-            os.unlink(l)
-    for d in log['dirs']:
-        if os.path.isdir(d):
-            print ('Removing directory ', d)
-            shutil.rmtree(d)
-    for b in log.get('backups', []):
-        shutil.move('%s.unvfs' %b,b)
-    log = {'dirs': [], 'links': [], 'backups': []}
-    open('movfs4l_log.json','w').write(json.dumps(log, indent=4))
-
-
-
-def addvfslayer(p,l, log):
-    for item in traverse(l, True):
-        mktree(p, item.lower(), log)  
-    for item in traverse(l):
-        src = os.path.join(l, item)
-        dest = os.path.join(p, item.lower())
-        if not os.path.isdir(src):
-            updatelink(src, dest, log)
-
-def lowertree(dir):
-    # renames all subforders of dir, not including dir itself
-    def rename_all( root, items):
-        for name in items:
-            try:
-                os.rename( os.path.join(root, name), 
-                                    os.path.join(root, name.lower()))
-            except OSError:
-                pass # can't rename it, so what
-
-    # starts from the bottom so paths further up remain valid after renaming
-    for root, dirs, files in os.walk( dir, topdown=False ):
-        rename_all( root, dirs )
-        rename_all( root, files)
-
+    os.system('fusermount -u %s' %p)
 
 if __name__ == '__main__':
     log = {'dirs': [], 'links': [], 'backups': []}
-    DATADIR=os.path.join(pathHdlr(PATHS['skyrim']),'Data')
-    lowertree(DATADIR)
+    DATADIR=os.path.join(pathHdlr(PATHS['gamedir']),'Data')
+    PRISTINEDIR='%s.PRISTINE' %DATADIR
+    if not os.path.isdir(PRISTINEDIR):
+        os.rename(DATADIR,PRISTINEDIR)
+        os.mkdir(DATADIR)
+    elif len(os.listdir(DATADIR)):
+        print ("Error: %s exists but %s is not empty ! " % (PRISTINEDIR, DATADIR))
+        sys.exit(1)
+    if os.system('ciopfs --help'):
+        print ('Error: you need CIOPFS to use this script.')
+        sys.exit(1)
+    #lowertree(DATADIR)
     MO_PROFILE='Default'
     if len(sys.argv) > 1:
         MO_PROFILE=sys.argv[1]
@@ -112,13 +59,16 @@ if __name__ == '__main__':
     PDIR=os.path.join(pathHdlr(PATHS['profiles']),MO_PROFILE)
     PLUGINS=os.path.join(PDIR,'plugins.txt')
     print ('Setting symlink from "%s" to "%s" for loadorder' %(PLUGINS,pathHdlr(PATHS['plugins.txt'])))
-    updatelink(PLUGINS, pathHdlr(PATHS['plugins.txt']), log)
+    updatelink(PLUGINS, pathHdlr(PATHS['plugins.txt']))
 
     print ('Parsing MO mods configuration')
     MODS=pathHdlr(PATHS['mods'])
+    CMD='ciopfs "%s"' %PRISTINEDIR
     for modpath in reversed([os.path.join(MODS,i[1:]).strip() for i in open(os.path.join(PDIR,'modlist.txt')).readlines() if i.startswith('+')]):
-        addvfslayer(DATADIR,modpath, log)
-    open('movfs4l_log.json','w').write(json.dumps(log, indent=4))
+        CMD='%s "%s"' %(CMD,modpath)
+    CMD='%s "%s"' %(CMD,DATADIR)
+    print ('Running: %s' %CMD)
+    os.system(CMD)
 
     print ('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' %sys.argv[0])
 
