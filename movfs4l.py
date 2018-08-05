@@ -8,6 +8,7 @@ import json
 
 PATHS={
     "mods": '{PREFIX}/drive_c/MO/mods',
+    "overwrite": '{PREFIX}/drive_c/MO/overwrite',
     "profiles": '{PREFIX}/drive_c/MO/profiles',
     "skyrim": '{PREFIX}/drive_c/Steam/steamapps/common/Skyrim Special Edition',
     "plugins.txt": '{PREFIX}/drive_c/users/metalpoet/Local Settings/Application Data/Skyrim Special Edition/Plugins.txt'
@@ -119,6 +120,10 @@ if __name__ == '__main__':
     for modpath in reversed([os.path.join(MODS,i[1:]).strip() for i in open(os.path.join(PDIR,'modlist.txt')).readlines() if i.startswith('+')]):
         addvfslayer(DATADIR,modpath, log)
     open('movfs4l_log.json','w').write(json.dumps(log, indent=4))
+    
+    print ('Parsing MO overwrite directory')
+    OVS=pathHdlr(PATHS['overwrite'])
+    addvfslayer(DATADIR, OVS, log)
 
     print ('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' %sys.argv[0])
 
