@@ -184,18 +184,6 @@ def plog(string):
     print(text)
 
 
-def traverse(rootDir, dirsonly=False):
-    if not rootDir.endswith('/'):
-        rootDir = '%s/' % rootDir
-    for dirName, subdirList, fileList in os.walk(rootDir):
-        iodelay(.001)
-        for fname in fileList:
-            if dirsonly:
-                yield dirName.replace(rootDir, '')
-            else:
-                yield os.path.join(dirName.replace(rootDir, ''), fname)
-
-
 vfs = {
     "type": "dir",
     "name": "",
@@ -232,7 +220,6 @@ def add_vfs_item(rootDir, vfs):
 
 def add_vfs_layer(rootDir):
     global vfs
-    #print("Adding layer: " + rootDir)
     add_vfs_item(rootDir, vfs["items"])
 
 
@@ -356,16 +343,6 @@ def lowerpath(path):
         return path.lower()
 
 
-def addvfslayer(p,l, log):
-    for item in traverse(l, True):
-        mktree(p, lowerpath(item), log)
-    for item in traverse(l):
-        src = winpath(os.path.join(l, item))
-        dest = winpath(os.path.join(p, lowerpath(item)))
-        if not os.path.isdir(src):
-            updatelink(src, dest, log)
-
-
 def lowertree(dir):
     if not use_lower:
         return
@@ -433,13 +410,8 @@ if __name__ == '__main__':
     plog('Writing log')
     open('movfs4l_log.json', 'w').write(json.dumps(log, indent=4))
 
-    #plog('Setting symlink from "%s" to "%s" for loadorder' % (PLUGINS, pathHdlr(PATHS['plugins.txt'])))
     plog('Linking loadorder')
     updatelink(PLUGINS, pathHdlr(PATHS['plugins.txt']), log)
-
-    #plog('Parsing MO overwrite directory')
-    #OVS=pathHdlr(PATHS['overwrite'])
-    #addvfslayer(DATADIR, OVS, log)
 
     print("")
     plog('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' % sys.argv[0])
