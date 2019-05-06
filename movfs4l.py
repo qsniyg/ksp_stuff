@@ -2,8 +2,8 @@
 import os
 import sys
 import shutil
-#from glob import iglob
 import re
+import threading
 try:
     # Much faster than python's default json module, makes reading and writing the log much quicker
     import ujson as json
@@ -75,37 +75,186 @@ def winpath(path):
     if lower not in pathcache:
         pathcache[lower] = winparent
 
-    for file in os.listdir(winparent):
-        if file.lower() == basename_lower:
-            return os.path.join(winparent, file)
+    if os.path.isdir(winparent):
+        for file in os.listdir(winparent):
+            if file.lower() == basename_lower:
+                return os.path.join(winparent, file)
 
     return os.path.join(winparent, basename)
 
 
-def traverse(rootDir, dirsonly=False):
-    if not rootDir.endswith('/'):
-        rootDir = '%s/' % rootDir
-    for dirName, subdirList, fileList in os.walk(rootDir):
-        iodelay(.001)
-        for fname in fileList:
-            if dirsonly:
-                yield dirName.replace(rootDir, '')
-            else:
-                yield os.path.join(dirName.replace(rootDir, ''), fname)
+def ioyield():
+    iodelay(.00001)
+
+
+def get_terminal_width():
+    return shutil.get_terminal_size()[0]
+
+
+prettyprint_total = 0
+prettyprint_current = 0
+prettyprint_text = ""
+prettyprint_lock = threading.Lock()
+prettyprint_stop = False
+
+def prettyprint(progress, text):
+    global prettyprint_current, prettyprint_text, prettyprint_lock
+
+    prettyprint_lock.acquire()
+    prettyprint_current = progress
+    prettyprint_text = text
+    prettyprint_lock.release()
+
+
+def pretty_print():
+    global prettyprint_lock
+    prettyprint_lock.acquire()
+    header = "[" + str(prettyprint_current) + "/" + str(prettyprint_total) + "] "
+    text = prettyprint_text
+    prettyprint_lock.release()
+
+    if text is None:
+        return False
+
+    width = get_terminal_width()
+    width -= len(header) + 1
+    text = text[:width]
+    for i in range(width - len(text)):
+        text += " "
+    sys.stdout.write("\r" + header + text)
+    return True
+
+
+def clear_line():
+    width = get_terminal_width()
+    text = ""
+    for i in range(width - 1):
+        text += " "
+    sys.stdout.write("\r" + text + "\r")
+
+
+def prettyprint_thread():
+    printed = False
+    while not prettyprint_stop:
+        if pretty_print():
+            printed = True
+        time.sleep(0.1)
+
+    if pretty_print():
+        printed = True
+
+    if printed:
+        clear_line()
+
+
+def start_prettyprint():
+    global prettyprint_current, prettyprint_stop, prettyprint_text
+    prettyprint_current = 0
+    prettyprint_stop = False
+    prettyprint_text = None
+
+    t = threading.Thread(target=prettyprint_thread)
+    t.start()
+    return t
+
+
+def stop_prettyprint(t):
+    global prettyprint_lock, prettyprint_stop
+    prettyprint_lock.acquire()
+    prettyprint_stop = True
+    prettyprint_lock.release()
+    t.join()
+
+
+plog_indent = 0
+def plog(string):
+    text = ""
+    color = "32"  # green
+    if plog_indent > 0:
+        text += " "
+        for i in range(plog_indent - 1):
+            text += "  "
+        text += "-> "
+        color = "34"  # blue
+    else:
+        text += "* "
+    text += "\33[" + color + "m"
+    text += string
+    text += "\33[0m"
+    print(text)
+
+
+vfs = {
+    "type": "dir",
+    "name": "",
+    "items": {}
+}
+vfs_total = 0
+vfs_progress = 0
+
+def add_vfs_item(rootDir, vfs):
+    global vfs_total
+
+    for item in os.listdir(rootDir):
+        ioyield()
+        real_path = os.path.join(rootDir, item)
+        vfs_hash = item.upper()
+
+        if vfs_hash not in vfs:
+            vfs[vfs_hash] = {}
+            vfs_total += 1
+
+        vfs[vfs_hash]["name"] = item
+
+        if os.path.isdir(real_path):
+            vfs[vfs_hash]["type"] = "dir"
+
+            if "items" not in vfs[vfs_hash]:
+                vfs[vfs_hash]["items"] = {}
+
+            add_vfs_item(real_path, vfs[vfs_hash]["items"])
+        else:
+            vfs[vfs_hash]["type"] = "file"
+            vfs[vfs_hash]["location"] = real_path
+
+
+def add_vfs_layer(rootDir):
+    global vfs
+    add_vfs_item(rootDir, vfs["items"])
+
+
+def apply_vfs(vfs, rootDir, vfs_path, log):
+    global vfs_progress
+    prettyprint(vfs_progress, vfs_path)
+    vfs_progress += 1
+
+    output = os.path.join(rootDir, vfs_path)
+
+    if vfs["type"] == "file":
+        updatelink(winpath(vfs["location"]), output, log)
+        return
+
+    if vfs["type"] == "dir":
+        mktree(rootDir, vfs_path, log)
+        for item in vfs["items"]:
+            item_obj = vfs["items"][item]
+            apply_vfs(item_obj, rootDir, os.path.join(vfs_path, item_obj["name"]), log)
+
 
 
 def updatelink(src, dest, log):
-    iodelay(.002)
+    iodelay(0.0015)
     dest = winpath(dest)
     if os.path.islink(dest):
         os.unlink(dest)
     elif os.path.exists(dest):
         shutil.move(dest, '%s.unvfs' % dest)
-        print ('Backing up ', dest)
+        #print ('Backing up ', dest)
         log['backups'].append(dest)
     log['links'].insert(0, dest)
-    print ('Linking "%s" to "%s"' % (src, dest))
+    #print ('Linking "%s" to "%s"' % (src, dest))
     os.symlink(src, dest)
+
 
 def mktree(root, path, log):
     iodelay(0.001)
@@ -114,7 +263,7 @@ def mktree(root, path, log):
         tree = winpath(os.path.join(tree, p))
         if not os.path.isdir(tree):
             log['dirs'].insert(0, tree)
-            print ('Creating directory ', tree)
+            #print ('Creating directory ', tree)
             os.mkdir(tree)
 
 
@@ -133,24 +282,56 @@ def pathHdlr(p):
 
 
 def unvfs(p):
+    global prettyprint_total
+
     if not os.path.exists('movfs4l_log.json'):
         return
-    print("Reading JSON")
+
+    plog("Reading movfs4l_log.json")
+
     log = json.loads(open('movfs4l_log.json').read())
+
+    head = p + "/"
+
+    plog("Removing links")
+    prettyprint_total = len(log['links'])
+    t = start_prettyprint()
+    i = 1
     for l in log['links']:
         l = winpath(l)
         if os.path.islink(l):
-            print ('Removing symlink ', l)
+            prettyprint(i, l.replace(head, ""))
+            #print ('Removing symlink ', l)
             iodelay(0.0005)
             os.unlink(l)
+        i += 1
+    stop_prettyprint(t)
+
+    plog("Removing directories")
+    prettyprint_total = len(log['dirs'])
+    t = start_prettyprint()
+    i = 1
     for d in log['dirs']:
         d = winpath(d)
         if os.path.isdir(d):
-            print ('Removing directory ', d)
+            prettyprint(i, d.replace(head, ""))
+            #print ('Removing directory ', d)
             shutil.rmtree(d)
+        i += 1
+    stop_prettyprint(t)
+
+    plog("Restoring backups")
+    prettyprint_total = len(log['backups'])
+    t = start_prettyprint()
+    i = 1
     for b in log.get('backups', []):
         b = winpath(b)
+        prettyprint(i, b.replace(head, ""))
         shutil.move('%s.unvfs' % b, b)
+        i += 1
+    stop_prettyprint(t)
+
+    plog("Clearing log")
     log = {'dirs': [], 'links': [], 'backups': []}
     open('movfs4l_log.json', 'w').write(json.dumps(log, indent=4))
 
@@ -160,16 +341,6 @@ def lowerpath(path):
         return path
     else:
         return path.lower()
-
-
-def addvfslayer(p,l, log):
-    for item in traverse(l, True):
-        mktree(p, lowerpath(item), log)
-    for item in traverse(l):
-        src = winpath(os.path.join(l, item))
-        dest = winpath(os.path.join(p, lowerpath(item)))
-        if not os.path.isdir(src):
-            updatelink(src, dest, log)
 
 
 def lowertree(dir):
@@ -200,23 +371,47 @@ if __name__ == '__main__':
         MO_PROFILE=sys.argv[1]
 
     #Don't create an MO profile named UNVFS - or you'll break this functionality
+    plog('Removing VFS layer')
+    plog_indent += 1
     unvfs(DATADIR)
+    plog_indent -= 1
     if MO_PROFILE == 'UNVFS':
         sys.exit()
 
     PDIR=os.path.join(pathHdlr(PATHS['profiles']),MO_PROFILE)
     PLUGINS=os.path.join(PDIR, 'plugins.txt')
-    print ('Setting symlink from "%s" to "%s" for loadorder' % (PLUGINS, pathHdlr(PATHS['plugins.txt'])))
-    updatelink(PLUGINS, pathHdlr(PATHS['plugins.txt']), log)
 
-    print ('Parsing MO mods configuration')
+    plog('Parsing MO mods configuration')
     MODS=pathHdlr(PATHS['mods'])
-    for modpath in reversed([os.path.join(MODS, i[1:]).strip() for i in open(os.path.join(PDIR, 'modlist.txt')).readlines() if i.startswith('+')]):
-        addvfslayer(DATADIR, modpath, log)
+    modpaths = list(reversed([i[1:].strip() for i in open(os.path.join(PDIR, 'modlist.txt')).readlines() if i.startswith('+')]))
+
+    plog('Creating VFS index')
+    prettyprint_total = len(modpaths) + 1
+    i = 1
+    t = start_prettyprint()
+
+    for modname in modpaths:
+        prettyprint(i, modname)
+        add_vfs_layer(os.path.join(MODS, modname).strip())
+        i += 1
+
+    prettyprint(i, "(Overwrite)")
+    add_vfs_layer(pathHdlr(PATHS['overwrite']))
+    i += 1
+
+    stop_prettyprint(t)
+
+    plog('Applying VFS')
+    prettyprint_total = vfs_total
+    t = start_prettyprint()
+    apply_vfs(vfs, DATADIR, "", log)
+    stop_prettyprint(t)
+
+    plog('Writing log')
     open('movfs4l_log.json', 'w').write(json.dumps(log, indent=4))
 
-    print ('Parsing MO overwrite directory')
-    OVS=pathHdlr(PATHS['overwrite'])
-    addvfslayer(DATADIR, OVS, log)
+    plog('Linking loadorder')
+    updatelink(PLUGINS, pathHdlr(PATHS['plugins.txt']), log)
 
-    print ('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' % sys.argv[0])
+    print("")
+    plog('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' % sys.argv[0])
