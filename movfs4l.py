@@ -253,7 +253,12 @@ def updatelink(src, dest, log):
         log['backups'].append(dest)
     log['links'].insert(0, dest)
     #print ('Linking "%s" to "%s"' % (src, dest))
-    os.symlink(src, dest)
+
+    # wine can't handle symlinked exes (but dlls are fine)
+    if src.lower().endswith(".exe"):
+        shutil.copyfile(src, dest)
+    else:
+        os.symlink(src, dest)
 
 
 def mktree(root, path, log):
