@@ -414,6 +414,12 @@ game = None
 
 
 def parse_config(variables):
+    orig_variables = None
+    regenerate_config = False
+    if variables.get("generate_config", False) is True:
+        regenerate_config = True
+        orig_variables = copy.deepcopy(variables)
+
     inipath = os.path.join(scriptdir, "config.ini")
     if not os.path.exists(inipath):
         return generate_config(variables, inipath)
@@ -447,8 +453,11 @@ def parse_config(variables):
         game_info["vars"] = variables
         games[mogame] = game_info
 
+    if regenerate_config:
+        generate_config(orig_variables, inipath, config)
 
-def generate_config(variables, inipath):
+
+def generate_config(variables, inipath, config=None):
     get_base_variables(variables)
 
     get_wine_user(variables)
@@ -460,11 +469,12 @@ def generate_config(variables, inipath):
         print("Unable to find any games")
         sys.exit(1)
 
-    config = configparser.ConfigParser()
+    if config is None:
+        config = configparser.ConfigParser()
 
-    config["general"] = {
-        "iodelay": True
-    }
+        config["general"] = {
+            "iodelay": True
+        }
 
     for game_path in games:
         gamename = os.path.basename(game_path)
@@ -477,7 +487,10 @@ def generate_config(variables, inipath):
             # portable installation
             gamename = gameinfo["shortname"]
 
-        config["game/" + gamename] = generate_game_config(variables, gameinfo)
+        keyname = "game/" + gamename
+
+        if keyname not in config:
+            config[keyname] = generate_game_config(variables, gameinfo)
 
     with open(inipath, 'w') as inifile:
         config.write(inifile)
@@ -768,7 +781,8 @@ def parsebool(value):
 
 
 boolargs = [
-    "unvfs"
+    "unvfs",
+    "generate_config"
 ]
 
 def parseargs():
