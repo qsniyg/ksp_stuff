@@ -6,7 +6,8 @@ import re
 import threading
 import configparser
 import copy
-import pprint
+#import pprint
+import time
 try:
     # Much faster than python's default json module, makes reading and writing the log much quicker
     import ujson as json
@@ -14,40 +15,8 @@ except Exception:
     import json
 
 
-# This setting adds small delays around I/O calls to prevent your system from freezing if using a HDD
-IO_DELAY = True
-
-PATHS = {
-    # Set this to the root directory for the ModOrganizer app.
-    # It should contain the folders 'mods', 'overwrite', and 'profiles'
-    "MOROOT": '{PREFIX}/drive_c/users/{USERNAME}/Local Settings/Application Data/ModOrganizer/SkyrimLE',
-    # You likely do not need to change these lines
-    "mods": '{MOROOT}/mods/',
-    "overwrite": '{MOROOT}/overwrite/',
-    "profiles": '{MOROOT}/profiles/',
-
-    # Set this to your Skyrim installation directory (it should contain TESV.exe)
-    "skyrim": '{PREFIX}/drive_c/Steam/steamapps/common/Skyrim Special Edition',
-    # You might need to change 'Skyrim Special Edition' to 'Skyrim' if not using SSE
-    # If you don't disable the folders under "Desktop Integration" in winecfg, the plugins.txt path might be somewhere in your linux home directory instead
-    # This is not the same directory that holds your save games.
-    # You probably want to back up this file before running this the first time !
-    "plugins.txt": '{PREFIX}/drive_c/users/{USERNAME}/Local Settings/Application Data/Skyrim Special Edition/plugins.txt'
-}
-
-
-PREFIX   = os.getenv('WINEPREFIX')
-USERNAME = os.getenv('USER')
-
-
-if IO_DELAY is True:
-    import time
-
-    def iodelay(s):
-        time.sleep(s)
-else:
-    def iodelay(s):
-        pass
+def iodelay(s):
+    pass
 
 
 use_lower = False
@@ -729,20 +698,6 @@ def mktree(root, path, log):
             os.mkdir(tree)
 
 
-def pathHdlr(p):
-    p = (p
-         .replace('{PREFIX}', PREFIX)
-         .replace('{USERNAME}', USERNAME))
-
-    if '{MOROOT}' in p:
-        p = p.replace(
-            '{MOROOT}',
-            pathHdlr(PATHS["MOROOT"])
-        )
-
-    return p
-
-
 def unvfs(p):
     global prettyprint_total
 
@@ -802,32 +757,6 @@ def unvfs(p):
 
     with open(logpath, 'w') as logfile:
         logfile.write(json.dumps(log))
-
-
-def lowerpath(path):
-    if not use_lower:
-        return path
-    else:
-        return path.lower()
-
-
-def lowertree(dir):
-    if not use_lower:
-        return
-
-    # renames all subforders of dir, not including dir itself
-    def rename_all(root, items):
-        for name in items:
-            try:
-                os.rename(os.path.join(root, name),
-                          os.path.join(root, lowerpath(name)))
-            except OSError:
-                pass  # can't rename it, so what
-
-    # starts from the bottom so paths further up remain valid after renaming
-    for root, dirs, files in os.walk(dir, topdown=False):
-        rename_all(root, dirs )
-        rename_all(root, files)
 
 
 def parsebool(value):
@@ -894,10 +823,15 @@ if __name__ == '__main__':
         entry["dest"] = apply_variables(entry["dest"], args)
         entry["path"] = apply_variables(entry["path"], args)
 
+    IO_DELAY = False
     if "iodelay" in game["vars"]:
         IO_DELAY = parsebool(game["vars"]["iodelay"])
         if type(IO_DELAY) is not bool:
             IO_DELAY = True
+
+    if IO_DELAY is True:
+        def iodelay(s):
+            time.sleep(s)
 
     plog('Removing VFS layer')
     for entry in game["vfs"]:
@@ -942,58 +876,3 @@ if __name__ == '__main__':
         gamename,
         profile
     ))
-
-    sys.exit(0)
-
-    log = {'dirs': [], 'links': [], 'backups': []}
-    DATADIR=os.path.join(pathHdlr(PATHS['skyrim']), 'Data')
-    lowertree(DATADIR)
-    MO_PROFILE='Default'
-    if len(sys.argv) > 1:
-        MO_PROFILE=sys.argv[1]
-
-    #Don't create an MO profile named UNVFS - or you'll break this functionality
-    plog('Removing VFS layer')
-    plog_indent += 1
-    unvfs(DATADIR)
-    plog_indent -= 1
-    if MO_PROFILE == 'UNVFS':
-        sys.exit()
-
-    PDIR=os.path.join(pathHdlr(PATHS['profiles']),MO_PROFILE)
-    PLUGINS=os.path.join(PDIR, 'plugins.txt')
-
-    plog('Parsing MO mods configuration')
-    MODS=pathHdlr(PATHS['mods'])
-    modpaths = list(reversed([i[1:].strip() for i in open(os.path.join(PDIR, 'modlist.txt')).readlines() if i.startswith('+')]))
-
-    plog('Creating VFS index')
-    prettyprint_total = len(modpaths) + 1
-    i = 1
-    t = start_prettyprint()
-
-    for modname in modpaths:
-        prettyprint(i, modname)
-        add_vfs_layer(os.path.join(MODS, modname).strip())
-        i += 1
-
-    prettyprint(i, "(Overwrite)")
-    add_vfs_layer(pathHdlr(PATHS['overwrite']))
-    i += 1
-
-    stop_prettyprint(t)
-
-    plog('Applying VFS')
-    prettyprint_total = vfs_total
-    t = start_prettyprint()
-    apply_vfs(vfs, DATADIR, "", log)
-    stop_prettyprint(t)
-
-    plog('Writing log')
-    open('movfs4l_log.json', 'w').write(json.dumps(log, indent=4))
-
-    plog('Linking loadorder')
-    updatelink(PLUGINS, pathHdlr(PATHS['plugins.txt']), log)
-
-    print("")
-    plog('VFS layer created. Rerun this script to update. Run "%s UNVFS" to shut it down' % sys.argv[0])
