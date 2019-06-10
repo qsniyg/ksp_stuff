@@ -722,7 +722,6 @@ def unvfs(p):
         l = winpath(l)
         if os.path.islink(l):
             prettyprint(i, l.replace(head, ""))
-            #print ('Removing symlink ', l)
             iodelay(0.0005)
             os.unlink(l)
         i += 1
@@ -735,9 +734,9 @@ def unvfs(p):
     for d in log['dirs']:
         d = winpath(d)
         if os.path.isdir(d):
-            prettyprint(i, d.replace(head, ""))
-            #print ('Removing directory ', d)
-            shutil.rmtree(d)
+            if not os.listdir(d):
+                prettyprint(i, d.replace(head, ""))
+                shutil.rmtree(d)
         i += 1
     stop_prettyprint(t)
 
