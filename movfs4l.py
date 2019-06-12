@@ -157,7 +157,8 @@ game_infos = {
 
         "neededvars": [
             "default_profile",
-            "vfs_meta_log"
+            "vfs_meta_log",
+            "wineprefix"
         ]
     },
 
@@ -168,7 +169,8 @@ game_infos = {
 
         "vars": {
             "default_profile": "Default",
-            "plugins_txt": "{gameappdata}/plugins.txt"
+            "plugins_txt": "{gameappdata}/plugins.txt",
+            "loadorder_txt": "{gameappdata}/loadorder.txt"
         },
 
         "vfs": [
@@ -182,8 +184,34 @@ game_infos = {
                 "dest": "{plugins_txt}",
                 "path": "{mo_profile}/plugins.txt",
                 "name": "plugins list"
+            },
+
+            {
+                "dest": "{loadorder_txt}",
+                "path": "{mo_profile}/loadorder.txt",
+                "name": "load order"
             }
         ]
+    },
+
+    "Morrowind": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Morrowind",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Morrowind",
+        }
+    },
+
+    "Oblivion": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Oblivion",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Oblivion",
+        }
     },
 
     "Skyrim": {
@@ -196,6 +224,16 @@ game_infos = {
         }
     },
 
+    "Enderal": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Enderal",
+
+        "vars": {
+            "gameappdata": "{localappdata}/enderal",
+        }
+    },
+
     "Skyrim Special Edition": {
         "inherit": "GenericBethesda",
 
@@ -203,25 +241,66 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Skyrim Special Edition",
-            "loadorder_txt": "{gameappdata}/loadorder.txt"
         },
+    },
 
-        "vfs": [
-            {
-                "dest": "{loadorder_txt}",
-                "path": "{mo_profile}/loadorder.txt",
-                "name": "load order"
-            }
-        ]
+    "Skyrim VR": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "SkyrimVR",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Skyrim VR",
+        },
+    },
+
+    "Fallout 3": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Fallout3",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Fallout3"
+        }
+    },
+
+    "New Vegas": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "FalloutNV",
+
+        "vars": {
+            "gameappdata": "{localappdata}/FalloutNV"
+        }
+    },
+
+    "TTW": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "FalloutTTW",
+
+        "vars": {
+            "gameappdata": "{localappdata}/FalloutNV"  # Yes, this is FalloutNV
+        }
     },
 
     "Fallout 4": {
-        "inherit": "Skyrim Special Edition",
+        "inherit": "GenericBethesda",
 
         "shortname": "Fallout4",
 
         "vars": {
             "gameappdata": "{localappdata}/Fallout4"
+        }
+    },
+
+    "Fallout 4 VR": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Fallout4VR",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Fallout4VR"
         }
     }
 }
@@ -239,14 +318,14 @@ def get_game_from_moroot(variables):
 
     if variables["game_type"] not in game_infos:
         variables["game_type"] = "GenericBethesda"
-        print("Unknown game: %s" % variables["game_type"])
-        print("Defaulting to GenericBethesda. You will have to manually enter `gameappdata' in the configuration.")
+        pwarn("Unknown game: %s" % variables["game_type"])
+        pwarn("Defaulting to GenericBethesda. You will have to manually enter `gameappdata' in the configuration.")
 
 
 def fill_game_info(variables, game_type=None):
     if game_type is None:
         if variables["game_type"] not in game_infos:
-            print("Unknown game type `%s', exiting." % variables["game_type"])
+            perr("Unknown game type `%s', exiting." % variables["game_type"])
             return sys.exit(1)
         game_type = variables["game_type"]
 
@@ -296,14 +375,14 @@ def get_wine_user(variables):
 
         error = False
         if len(users) > 1:
-            print("Too many users in %s, use the `wineuser' configuration option to specify the user." % variables["wineprefix"])
+            pwarn("Too many users in %s, use `--wineuser' to specify the user." % variables["wineprefix"])
             error = True
         elif len(users) == 0:
-            print("No users under %s?" % variables["wineprefix"])
+            pwarn("No users under %s?" % variables["wineprefix"])
             error = True
 
         if error:
-            print("The script may still succeed if using a portable ModOrganizer setup, but you will need to manually set `localappdata'.")
+            pwarn("The script may still succeed if using a portable ModOrganizer setup, but you will need to manually set `localappdata'.")
             return None
 
         variables["wineuser"] = users[0]
@@ -312,6 +391,8 @@ def get_wine_user(variables):
         winehome = winpath(os.path.join(usersdir, variables["wineuser"]))
         if os.path.exists(winehome):
             variables["winehome"] = winehome
+        else:
+            pwarn("`%s' does not exist" % winehome)
 
 
 def find_localappdata(variables):
@@ -328,12 +409,16 @@ def find_localappdata(variables):
     for path in searchpaths:
         fullpath = winpath(os.path.join(variables["winehome"], path))
         if os.path.exists(fullpath):
+            # TODO: maybe check if ModOrganizer exists under it?
             variables["localappdata"] = fullpath
             break
 
 
 def find_mo_installroot(variables):
     if "mo_installroot" in variables:
+        variables["mo_installroot"] = winepath(variables["wineprefix"], variables["mo_installroot"])
+        if not os.path.exists(variables["mo_installroot"]):
+            pwarn("Specified ModOrganizer installation path (%s) does not exist" % variables["mo_installroot"])
         return variables["mo_installroot"]
 
     installroot = winpath(os.path.join(variables["wineprefix"], "drive_c", "Modding", "MO2"))
@@ -341,9 +426,11 @@ def find_mo_installroot(variables):
         variables["mo_installroot"] = installroot
         return installroot
 
-    print("Can't find MO installation path in current wineprefix (%s)\n" % variables["wineprefix"])
-    print("Either change WINEPREFIX or use the `mo_installroot' configuration option to specify a custom installation location.")
+    pwarn("Unable to find ModOrganizer installation path in current wineprefix (%s)" % variables["wineprefix"])
+    pwarn("Either set WINEPREFIX if ModOrganizer is installed in another prefix, %s" %
+          "or use the `--mo_installroot' option if ModOrganizer is installed to somewhere other than `C:\Modding\MO2'.")
     return None
+
 
 
 def find_mo_games(variables):
@@ -354,8 +441,8 @@ def find_mo_games(variables):
     if os.path.exists(winpath(os.path.join(variables["mo_installroot"], "ModOrganizer.ini"))):
         return [variables["mo_installroot"]]
 
-    if "winehome" in variables:
-        moroot = winpath(os.path.join(variables["winehome"], "Local Settings", "Application Data", "ModOrganizer"))
+    if "localappdata" in variables:
+        moroot = winpath(os.path.join(variables["localappdata"], "ModOrganizer"))
         if os.path.exists(moroot):
             games = []
             for game in os.listdir(moroot):
@@ -363,6 +450,8 @@ def find_mo_games(variables):
                 if os.path.exists(winpath(os.path.join(fullgamedir, "ModOrganizer.ini"))):
                     games.append(fullgamedir)
             return games
+    else:
+        pwarn("`localappdata' is missing")
 
     return []
 
@@ -424,6 +513,7 @@ def parse_config(variables):
     if not os.path.exists(inipath):
         return generate_config(variables, inipath)
 
+    plog("Parsing configuration file")
     config = configparser.ConfigParser()
     config.read(inipath)
 
@@ -458,6 +548,11 @@ def parse_config(variables):
 
 
 def generate_config(variables, inipath, config=None):
+    global plog_indent
+
+    plog("Generating configuration file")
+    plog_indent += 1
+
     get_base_variables(variables)
 
     get_wine_user(variables)
@@ -466,7 +561,7 @@ def generate_config(variables, inipath, config=None):
     games = find_mo_games(variables)
 
     if len(games) == 0:
-        print("Unable to find any games")
+        perr("Unable to find any games")
         sys.exit(1)
 
     if config is None:
@@ -483,9 +578,19 @@ def generate_config(variables, inipath, config=None):
 
         gameinfo = fill_game_info(variables)
 
-        if gamename == "MO2":
+        if os.path.exists(winpath(os.path.join(game_path, "ModOrganizer.exe"))):
             # portable installation
             gamename = gameinfo["shortname"]
+
+        plog("Detected game `%s' at %s" % (
+            gamename, variables["game_path"]
+        ))
+
+        if not os.path.exists(winpath(variables["game_path"])):
+            plog_indent += 1
+            pwarn("Does not exist, skipping")
+            plog_indent -= 1
+            continue
 
         keyname = "game/" + gamename
 
@@ -495,7 +600,11 @@ def generate_config(variables, inipath, config=None):
     with open(inipath, 'w') as inifile:
         config.write(inifile)
 
-    print("Written auto-generated configuration to config.ini. Please check the file, then run this script again.")
+    plog_indent -= 1
+    plog("Written auto-generated configuration to `config.ini'. %s" % (
+        "Please check the file, then run this script again."
+    ))
+    plog("You can also re-run this for other installations by using `--generate_config'")
     sys.exit(0)
 
 
@@ -586,7 +695,7 @@ def stop_prettyprint(t):
 
 
 plog_indent = 0
-def plog(string):
+def plog(string, **kwargs):
     text = ""
     color = "32"  # green
     if plog_indent > 0:
@@ -597,11 +706,25 @@ def plog(string):
         color = "34"  # blue
     else:
         text += "* "
+    if "level" in kwargs:
+        if kwargs["level"] == "warn":
+            color = "33" # yellow
+        elif kwargs["level"] == "error":
+            color = "31" # red
     text += "\33[" + color + "m"
     text += string
     text += "\33[0m"
     print(text)
 
+
+def pwarn(string, **kwargs):
+    kwargs["level"] = "warn"
+    plog(string, **kwargs)
+
+
+def perr(string, **kwargs):
+    kwargs["level"] = "error"
+    plog(string, **kwargs)
 
 vfs = {
     "type": "dir",
@@ -814,7 +937,7 @@ if __name__ == '__main__':
         game = games[game]
 
     if game is None:
-        print("Unable to detect game")
+        perr("Unable to detect game (use `--game' to specify)")
         sys.exit(0)
 
     args = game["vars"]
@@ -825,11 +948,12 @@ if __name__ == '__main__':
         profile = args.get("default_profile", "Default")
 
     args["profile"] = profile
+    plog("Using profile `%s'" % args["profile"])
 
     fill_variables(args)
 
     if not os.path.exists(winpath(args["mo_profile"])):
-        print("Profile directory does not exist: %s" % args["mo_profile"])
+        perr("Profile directory does not exist: %s" % args["mo_profile"])
         sys.exit(1)
 
     for entry in game["vfs"]:
