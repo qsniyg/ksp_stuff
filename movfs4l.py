@@ -169,7 +169,8 @@ game_infos = {
 
         "vars": {
             "default_profile": "Default",
-            "plugins_txt": "{gameappdata}/plugins.txt"
+            "plugins_txt": "{gameappdata}/plugins.txt",
+            "loadorder_txt": "{gameappdata}/loadorder.txt"
         },
 
         "vfs": [
@@ -183,8 +184,34 @@ game_infos = {
                 "dest": "{plugins_txt}",
                 "path": "{mo_profile}/plugins.txt",
                 "name": "plugins list"
+            },
+
+            {
+                "dest": "{loadorder_txt}",
+                "path": "{mo_profile}/loadorder.txt",
+                "name": "load order"
             }
         ]
+    },
+
+    "Morrowind": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Morrowind",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Morrowind",
+        }
+    },
+
+    "Oblivion": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Oblivion",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Oblivion",
+        }
     },
 
     "Skyrim": {
@@ -197,6 +224,16 @@ game_infos = {
         }
     },
 
+    "Enderal": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Enderal",
+
+        "vars": {
+            "gameappdata": "{localappdata}/enderal",
+        }
+    },
+
     "Skyrim Special Edition": {
         "inherit": "GenericBethesda",
 
@@ -204,25 +241,66 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Skyrim Special Edition",
-            "loadorder_txt": "{gameappdata}/loadorder.txt"
         },
+    },
 
-        "vfs": [
-            {
-                "dest": "{loadorder_txt}",
-                "path": "{mo_profile}/loadorder.txt",
-                "name": "load order"
-            }
-        ]
+    "Skyrim VR": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "SkyrimVR",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Skyrim VR",
+        },
+    },
+
+    "Fallout 3": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Fallout3",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Fallout3"
+        }
+    },
+
+    "New Vegas": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "FalloutNV",
+
+        "vars": {
+            "gameappdata": "{localappdata}/FalloutNV"
+        }
+    },
+
+    "TTW": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "FalloutTTW",
+
+        "vars": {
+            "gameappdata": "{localappdata}/FalloutNV"  # Yes, this is FalloutNV
+        }
     },
 
     "Fallout 4": {
-        "inherit": "Skyrim Special Edition",
+        "inherit": "GenericBethesda",
 
         "shortname": "Fallout4",
 
         "vars": {
             "gameappdata": "{localappdata}/Fallout4"
+        }
+    },
+
+    "Fallout 4 VR": {
+        "inherit": "GenericBethesda",
+
+        "shortname": "Fallout4VR",
+
+        "vars": {
+            "gameappdata": "{localappdata}/Fallout4VR"
         }
     }
 }
