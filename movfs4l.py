@@ -170,12 +170,14 @@ game_infos = {
         "vars": {
             "default_profile": "Default",
             "plugins_txt": "{gameappdata}/plugins.txt",
-            "loadorder_txt": "{gameappdata}/loadorder.txt"
+            "loadorder_txt": "{gameappdata}/loadorder.txt",
+            "game_userdir": "{mygames_root}/{game_shortname}",
+            "game_datadir": "{game_path}/Data"
         },
 
         "vfs": [
             {
-                "dest": "{game_path}/Data",
+                "dest": "{game_datadir}",
                 "path": "[mods]",
                 "name": "mods"
             },
@@ -190,6 +192,12 @@ game_infos = {
                 "dest": "{loadorder_txt}",
                 "path": "{mo_profile}/loadorder.txt",
                 "name": "load order"
+            },
+
+            {
+                "dest": "{game_userdir}",
+                "path": "[inis]",
+                "name": "INI configuration files"
             }
         ]
     },
@@ -200,8 +208,14 @@ game_infos = {
         "shortname": "Morrowind",
 
         "vars": {
+            "game_userdir": "{game_path}",
+            "game_datadir": "{game_path}/Data Files",
             "gameappdata": "{localappdata}/Morrowind",
-        }
+        },
+
+        "inis": [
+            "Morrowind.ini"
+        ]
     },
 
     "Oblivion": {
@@ -211,7 +225,12 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Oblivion",
-        }
+        },
+
+        "inis": [
+            "oblivion.ini",
+            "oblivionprefs.ini"
+        ]
     },
 
     "Skyrim": {
@@ -221,7 +240,12 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Skyrim",
-        }
+        },
+
+        "inis": [
+            "skyrim.ini",
+            "skyrimprefs.ini"
+        ]
     },
 
     "Enderal": {
@@ -231,7 +255,12 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/enderal",
-        }
+        },
+
+        "inis": [
+            "enderal.ini",
+            "enderalprefs.ini"
+        ]
     },
 
     "Skyrim Special Edition": {
@@ -242,6 +271,12 @@ game_infos = {
         "vars": {
             "gameappdata": "{localappdata}/Skyrim Special Edition",
         },
+
+        "inis": [
+            "skyrim.ini",
+            "skyrimprefs.ini",
+            "skyrimcustom.ini"
+        ]
     },
 
     "Skyrim VR": {
@@ -252,6 +287,11 @@ game_infos = {
         "vars": {
             "gameappdata": "{localappdata}/Skyrim VR",
         },
+
+        "inis": [
+            "skyrimvr.ini",
+            "skyrimprefs.ini"
+        ]
     },
 
     "Fallout 3": {
@@ -261,11 +301,19 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Fallout3"
-        }
+        },
+
+        "inis": [
+            "fallout.ini",
+            "falloutprefs.ini",
+            "custom.ini",
+            "GECKCustom.ini",
+            "GECKPrefs.ini"
+        ]
     },
 
     "New Vegas": {
-        "inherit": "GenericBethesda",
+        "inherit": "Fallout 3",
 
         "shortname": "FalloutNV",
 
@@ -275,12 +323,13 @@ game_infos = {
     },
 
     "TTW": {
-        "inherit": "GenericBethesda",
+        "inherit": "FalloutNV",
 
         "shortname": "FalloutTTW",
 
         "vars": {
-            "gameappdata": "{localappdata}/FalloutNV"  # Yes, this is FalloutNV
+            "game_userdir": "{mygames_root}/FalloutNV",
+            "gameappdata": "{localappdata}/FalloutNV"
         }
     },
 
@@ -291,11 +340,17 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Fallout4"
-        }
+        },
+
+        "inis": [
+            "fallout4.ini",
+            "fallout4prefs.ini",
+            "fallout4custom.ini"
+        ]
     },
 
     "Fallout 4 VR": {
-        "inherit": "GenericBethesda",
+        "inherit": "Fallout4",
 
         "shortname": "Fallout4VR",
 
@@ -331,10 +386,15 @@ def fill_game_info(variables, game_type=None):
 
     game_info = game_infos[game_type]
 
+    if "shortname" in game_info and "game_shortname" not in variables:
+        variables["game_shortname"] = game_info["shortname"]
+
     if "neededvars" not in game_info:
         game_info["neededvars"] = []
     if "vfs" not in game_info:
         game_info["vfs"] = []
+    if "inis" not in game_info:
+        game_info["inis"] = []
 
     for var in game_info["vars"]:
         if var not in variables:
@@ -347,6 +407,10 @@ def fill_game_info(variables, game_type=None):
         for entry in inherited.get("neededvars", []):
             if entry not in game_info["neededvars"]:
                 game_info["neededvars"].append(entry)
+
+        for entry in inherited.get("inis", []):
+            if entry not in game_info["inis"]:
+                game_info["inis"].append(entry)
 
     # Remove duplicate entries (disabled for now as it's useless, and breaks overwrites)
     """old_vfs = game_info["vfs"]
@@ -406,11 +470,33 @@ def find_localappdata(variables):
     if "winehome" not in variables:
         return
 
+    if "localappdata" in variables:
+        return
+
     for path in searchpaths:
         fullpath = winpath(os.path.join(variables["winehome"], path))
         if os.path.exists(fullpath):
             # TODO: maybe check if ModOrganizer exists under it?
             variables["localappdata"] = fullpath
+            break
+
+
+def find_mygames(variables):
+    searchpaths = [
+        "My Documents",
+        "Documents"
+    ]
+
+    if "winehome" not in variables:
+        return
+
+    if "mygames_root" in variables:
+        return
+
+    for path in searchpaths:
+        fullpath = winpath(os.path.join(variables["winehome"], path, "My Games"))
+        if os.path.exists(fullpath):
+            variables["mygames_root"] = fullpath
             break
 
 
@@ -468,12 +554,19 @@ def get_base_variables(variables):
             if varname not in variables:
                 variables[varname] = os.environ[var]
 
-    if "mo_profile" not in variables:
-        variables["mo_profile"] = "{mo_gameroot}/profiles/{profile}"
-    if "mo_mods" not in variables:
-        variables["mo_mods"] = "{mo_gameroot}/mods"
-    if "mo_overwrite" not in variables:
-        variables["mo_overwrite"] = "{mo_gameroot}/overwrite"
+
+def get_default_variables(variables):
+    defaults = {
+        "iodelay": "true",
+        "mo_profile": "{mo_gameroot}/profiles/{profile}",
+        "mo_mods": "{mo_gameroot}/mods",
+        "mo_overwrite": "{mo_gameroot}/overwrite",
+        "link_inis": "false"
+    }
+
+    for var in defaults:
+        if var not in variables:
+            variables[var] = defaults[var]
 
 
 def generate_game_config(variables, gameinfo):
@@ -519,10 +612,10 @@ def parse_config(variables):
 
     get_base_variables(variables)
 
-    if "default" in config:
-        for var in config["default"]:
+    if "general" in config:
+        for var in config["general"]:
             if var not in variables:
-                variables[var] = config["default"][var]
+                variables[var] = config["general"][var]
 
     base_variables = variables
 
@@ -554,10 +647,12 @@ def generate_config(variables, inipath, config=None):
     plog_indent += 1
 
     get_base_variables(variables)
+    get_default_variables(variables)
 
     get_wine_user(variables)
     find_localappdata(variables)
     find_mo_installroot(variables)
+    find_mygames(variables)
     games = find_mo_games(variables)
 
     if len(games) == 0:
@@ -568,7 +663,8 @@ def generate_config(variables, inipath, config=None):
         config = configparser.ConfigParser()
 
         config["general"] = {
-            "iodelay": True
+            "iodelay": True,
+            "link_inis": True
         }
 
     for game_path in games:
@@ -785,16 +881,23 @@ def apply_vfs(vfs, rootDir, vfs_path, log):
 
 vfs_log = {'dirs': [], 'links': [], 'backups': []}
 
-def apply_game_vfs():
+def apply_game_vfs(variables):
     global prettyprint_total, vfs_log
 
     for entry in game["vfs"]:
+        if entry["path"] == "[inis]" and parsebool(variables.get("link_inis", "false")) is not True:
+            continue
+
         plog("Linking %s" % entry["name"])
         if entry["path"] == "[mods]":
             prettyprint_total = vfs_total
             t = start_prettyprint()
             apply_vfs(vfs, entry["dest"], "", vfs_log)
             stop_prettyprint(t)
+        elif entry["path"] == "[inis]":
+            for ini in game.get("inis", []):
+                updatelink(winpath(os.path.join(variables["mo_profile"], ini)),
+                           winpath(os.path.join(entry["dest"], ini)), vfs_log)
         else:
             updatelink(entry["path"], entry["dest"], vfs_log)
 
@@ -950,6 +1053,7 @@ if __name__ == '__main__':
     args["profile"] = profile
     plog("Using profile `%s'" % args["profile"])
 
+    get_default_variables(args)
     fill_variables(args)
 
     if not os.path.exists(winpath(args["mo_profile"])):
@@ -1004,7 +1108,7 @@ if __name__ == '__main__':
 
     stop_prettyprint(t)
 
-    apply_game_vfs()
+    apply_game_vfs(args)
     write_vfs_log()
 
     print("")
