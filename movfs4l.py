@@ -1112,7 +1112,7 @@ if __name__ == '__main__':
     write_vfs_log()
 
     print("")
-    plog('VFS layer created. Run "%s --game %s --profile %s --unvfs" to shut it down (run this before running Mod Organizer again)' % (
+    plog('VFS layer created. Run "%s --game \'%s\' --profile \'%s\' --unvfs" to shut it down (run this before running Mod Organizer again)' % (
         sys.argv[0],
         gamename,
         profile
