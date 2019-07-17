@@ -193,6 +193,7 @@ game_infos = {
                 "dest": "{loadorder_txt}",
                 "path": "{mo_profile}/loadorder.txt",
                 "name": "load order"
+                #"disabled": True
             },
 
             {
@@ -403,7 +404,15 @@ def fill_game_info(variables, game_type=None):
 
     if "inherit" in game_info:
         inherited = fill_game_info(variables, game_info["inherit"])
-        game_info["vfs"] = inherited["vfs"] + game_info["vfs"]
+
+        for entry in inherited["vfs"]:
+            can_add = True
+            for entry1 in game_info["vfs"]:
+                if entry1["dest"] == entry["dest"] and entry1["path"] == entry["path"]:
+                    can_add = False
+                    break
+            if can_add:
+                game_info["vfs"].append(entry)
 
         for entry in inherited.get("neededvars", []):
             if entry not in game_info["neededvars"]:
@@ -583,6 +592,9 @@ def generate_game_config(variables, gameinfo):
             used_variables.append(entry)
 
     for entry in gameinfo["vfs"]:
+        if "disabled" in entry:
+            continue
+
         get_used_variables(entry["dest"], variables, used_variables)
         get_used_variables(entry["path"], variables, used_variables)
 
@@ -892,6 +904,9 @@ def write_winevfs_file(variables):
 
     filecontents = []
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         if entry["path"] == "[inis]" and parsebool(variables.get("link_inis", "false")) is not True:
             continue
         if entry["path"] == "[mods]":
@@ -907,7 +922,6 @@ def write_winevfs_file(variables):
                 filecontents.append("R")
                 filecontents.append(winpath(os.path.join(entry["dest"], ini)))
                 filecontents.append(winpath(os.path.join(variables["mo_profile"], ini)))
-
         else:
             filecontents.append("R")
             filecontents.append(winpath(entry["dest"]))
@@ -924,6 +938,9 @@ def apply_game_vfs(variables):
     global prettyprint_total, vfs_log
 
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         if entry["path"] == "[inis]" and parsebool(variables.get("link_inis", "false")) is not True:
             continue
 
@@ -1038,12 +1055,17 @@ def unvfs(p):
 
 def get_modpaths(args):
     modpaths = []
-    for i in open(winpath(os.path.join(args["mo_profile"], 'modlist.txt'))).readlines():
+
+    lines = []
+    with open(winpath(os.path.join(args["mo_profile"], 'modlist.txt'))) as f:
+        lines = f.readlines()
+
+    for i in lines:
         if i.startswith('+'):  # only enabled mods
             modpaths.append(i[1:].strip())
 
-    modpaths = list(reversed(modpaths))
-    return modpaths
+    reversed_modpaths = list(reversed(modpaths))
+    return reversed_modpaths
 
 
 def parsebool(value):
@@ -1122,6 +1144,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         entry["dest"] = apply_variables(entry["dest"], args)
         entry["path"] = apply_variables(entry["path"], args)
 
@@ -1155,6 +1180,9 @@ if __name__ == '__main__':
 
     plog('Removing VFS layer')
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         if entry["path"] == "[mods]":
             plog_indent += 1
             unvfs(entry["dest"])
