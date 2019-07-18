@@ -1176,7 +1176,19 @@ if __name__ == '__main__':
 
         commandline = [game["vars"]["winevfs"]] + game["vars"]["run"]
 
-        sys.exit(subprocess.call(commandline, env=os.environ))
+        pwarn("Running `wineserver -w', this will hang until all wine processes have quit")
+        pwarn("Do not run ModOrganizer until all wine processes are finished")
+        subprocess.call(["wineserver", "-w"], env=os.environ)
+        subprocess.call(["wineserver", "-k"], env=os.environ)
+
+        status = subprocess.call(commandline, env=os.environ)
+
+        pwarn("Running `wineserver -w', this will hang until all wine processes have quit")
+        pwarn("Do not run ModOrganizer until all wine processes are finished")
+        subprocess.call(["wineserver", "-w"], env=os.environ)
+        subprocess.call(["wineserver", "-k"], env=os.environ)
+
+        sys.exit(status)
 
     plog('Removing VFS layer')
     for entry in game["vfs"]:
