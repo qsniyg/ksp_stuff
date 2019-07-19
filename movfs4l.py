@@ -85,6 +85,25 @@ def get_terminal_width():
     return shutil.get_terminal_size()[0]
 
 
+def simple_copy(data):
+    if type(data) == list:
+        mylist = []
+
+        for i in data:
+            mylist.append(simple_copy(i))
+
+        return mylist
+    elif type(data) == dict:
+        mydict = {}
+
+        for i in data:
+            mydict[i] = simple_copy(data[i])
+
+        return mydict
+    else:
+        return data
+
+
 def apply_variables(string, variables, processed={}):
     if type(string) != str:
         return string
@@ -386,7 +405,7 @@ def fill_game_info(variables, game_type=None):
             return sys.exit(1)
         game_type = variables["game_type"]
 
-    game_info = game_infos[game_type]
+    game_info = simple_copy(game_infos[game_type])
 
     if "shortname" in game_info and "game_shortname" not in variables:
         variables["game_shortname"] = game_info["shortname"]
@@ -400,7 +419,7 @@ def fill_game_info(variables, game_type=None):
 
     for var in game_info["vars"]:
         if var not in variables:
-            variables[var] = game_info["vars"][var]
+            variables[var] = simple_copy(game_info["vars"][var])
 
     if "inherit" in game_info:
         inherited = fill_game_info(variables, game_info["inherit"])
@@ -615,7 +634,7 @@ def parse_config(variables):
     regenerate_config = False
     if variables.get("generate_config", False) is True:
         regenerate_config = True
-        orig_variables = copy.deepcopy(variables)
+        orig_variables = simple_copy(variables)
 
     inipath = os.path.join(scriptdir, "config.ini")
     if not os.path.exists(inipath):
@@ -640,17 +659,17 @@ def parse_config(variables):
         if not var.startswith("game/"):
             continue
 
-        variables = copy.deepcopy(base_variables)
+        variables = simple_copy(base_variables)
 
         mogame = var[len("game/"):]
         mogame_config = config[var]
 
         for mvar in mogame_config:
             if mvar not in variables or mvar in generalvars:
-                variables[mvar] = mogame_config[mvar]
+                variables[mvar] = simple_copy(mogame_config[mvar])
 
         game_info = fill_game_info(variables)
-        game_info["vars"] = variables
+        game_info["vars"] = simple_copy(variables)
         games[mogame] = game_info
 
     if regenerate_config:
@@ -1120,7 +1139,7 @@ if __name__ == '__main__':
 
     if game is not None:
         gamename = game
-        game = games[game]
+        game = games[gamename]
 
     if game is None:
         perr("Unable to detect game (use `--game' to specify)")
@@ -1187,6 +1206,7 @@ if __name__ == '__main__':
         pwarn("Do not run ModOrganizer until all wine processes are finished")
         subprocess.call(["wineserver", "-w"], env=os.environ)
         subprocess.call(["wineserver", "-k"], env=os.environ)
+        plog("Finished")
 
         sys.exit(status)
 
