@@ -6,6 +6,7 @@ import re
 import threading
 import configparser
 import copy
+import subprocess
 #import pprint
 import time
 try:
@@ -82,6 +83,25 @@ def ioyield():
 
 def get_terminal_width():
     return shutil.get_terminal_size()[0]
+
+
+def simple_copy(data):
+    if type(data) == list:
+        mylist = []
+
+        for i in data:
+            mylist.append(simple_copy(i))
+
+        return mylist
+    elif type(data) == dict:
+        mydict = {}
+
+        for i in data:
+            mydict[i] = simple_copy(data[i])
+
+        return mydict
+    else:
+        return data
 
 
 def apply_variables(string, variables, processed={}):
@@ -192,6 +212,7 @@ game_infos = {
                 "dest": "{loadorder_txt}",
                 "path": "{mo_profile}/loadorder.txt",
                 "name": "load order"
+                #"disabled": True
             },
 
             {
@@ -384,7 +405,7 @@ def fill_game_info(variables, game_type=None):
             return sys.exit(1)
         game_type = variables["game_type"]
 
-    game_info = game_infos[game_type]
+    game_info = simple_copy(game_infos[game_type])
 
     if "shortname" in game_info and "game_shortname" not in variables:
         variables["game_shortname"] = game_info["shortname"]
@@ -398,11 +419,19 @@ def fill_game_info(variables, game_type=None):
 
     for var in game_info["vars"]:
         if var not in variables:
-            variables[var] = game_info["vars"][var]
+            variables[var] = simple_copy(game_info["vars"][var])
 
     if "inherit" in game_info:
         inherited = fill_game_info(variables, game_info["inherit"])
-        game_info["vfs"] = inherited["vfs"] + game_info["vfs"]
+
+        for entry in inherited["vfs"]:
+            can_add = True
+            for entry1 in game_info["vfs"]:
+                if entry1["dest"] == entry["dest"] and entry1["path"] == entry["path"]:
+                    can_add = False
+                    break
+            if can_add:
+                game_info["vfs"].append(entry)
 
         for entry in inherited.get("neededvars", []):
             if entry not in game_info["neededvars"]:
@@ -543,11 +572,6 @@ def find_mo_games(variables):
 
 
 def get_base_variables(variables):
-    if "WINEPREFIX" in os.environ:
-        variables["wineprefix"] = os.environ["WINEPREFIX"]
-    else:
-        variables["wineprefix"] = os.path.expanduser("~/.wine")
-
     for var in os.environ:
         if var.startswith("MO_"):
             varname = var[3:]
@@ -568,6 +592,13 @@ def get_default_variables(variables):
         if var not in variables:
             variables[var] = defaults[var]
 
+    if "wineprefix" not in variables:
+        if "WINEPREFIX" in os.environ:
+            variables["wineprefix"] = os.environ["WINEPREFIX"]
+        else:
+            variables["wineprefix"] = os.path.expanduser("~/.wine")
+
+
 
 def generate_game_config(variables, gameinfo):
     used_variables = [
@@ -580,6 +611,9 @@ def generate_game_config(variables, gameinfo):
             used_variables.append(entry)
 
     for entry in gameinfo["vfs"]:
+        if "disabled" in entry:
+            continue
+
         get_used_variables(entry["dest"], variables, used_variables)
         get_used_variables(entry["path"], variables, used_variables)
 
@@ -600,7 +634,7 @@ def parse_config(variables):
     regenerate_config = False
     if variables.get("generate_config", False) is True:
         regenerate_config = True
-        orig_variables = copy.deepcopy(variables)
+        orig_variables = simple_copy(variables)
 
     inipath = os.path.join(scriptdir, "config.ini")
     if not os.path.exists(inipath):
@@ -612,10 +646,12 @@ def parse_config(variables):
 
     get_base_variables(variables)
 
+    generalvars = {}
     if "general" in config:
         for var in config["general"]:
             if var not in variables:
                 variables[var] = config["general"][var]
+                generalvars[var] = True
 
     base_variables = variables
 
@@ -623,17 +659,17 @@ def parse_config(variables):
         if not var.startswith("game/"):
             continue
 
-        variables = copy.deepcopy(base_variables)
+        variables = simple_copy(base_variables)
 
         mogame = var[len("game/"):]
         mogame_config = config[var]
 
         for mvar in mogame_config:
-            if mvar not in variables:
-                variables[mvar] = mogame_config[mvar]
+            if mvar not in variables or mvar in generalvars:
+                variables[mvar] = simple_copy(mogame_config[mvar])
 
         game_info = fill_game_info(variables)
-        game_info["vars"] = variables
+        game_info["vars"] = simple_copy(variables)
         games[mogame] = game_info
 
     if regenerate_config:
@@ -678,7 +714,7 @@ def generate_config(variables, inipath, config=None):
             # portable installation
             gamename = gameinfo["shortname"]
 
-        plog("Detected game `%s' at %s" % (
+        plog("Detected game '%s' at %s" % (
             gamename, variables["game_path"]
         ))
 
@@ -881,10 +917,49 @@ def apply_vfs(vfs, rootDir, vfs_path, log):
 
 vfs_log = {'dirs': [], 'links': [], 'backups': []}
 
+
+def write_winevfs_file(variables):
+    modlist = get_modpaths(variables)
+
+    filecontents = []
+    for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
+        if entry["path"] == "[inis]" and parsebool(variables.get("link_inis", "false")) is not True:
+            continue
+        if entry["path"] == "[mods]":
+            for mod in modlist:
+                filecontents.append("R")
+                filecontents.append(winpath(entry["dest"]))
+                filecontents.append(winpath(os.path.join(args["mo_mods"], mod)))
+            filecontents.append("W")
+            filecontents.append(winpath(entry["dest"]))
+            filecontents.append(winpath(variables["mo_overwrite"]))
+        elif entry["path"] == "[inis]":
+            for ini in game.get("inis", []):
+                filecontents.append("R")
+                filecontents.append(winpath(os.path.join(entry["dest"], ini)))
+                filecontents.append(winpath(os.path.join(variables["mo_profile"], ini)))
+        else:
+            filecontents.append("R")
+            filecontents.append(winpath(entry["dest"]))
+            filecontents.append(winpath(entry["path"]))
+
+    filecontents.append("")
+
+    with open("/tmp/.movfs4l_winevfs", 'w') as f:
+        f.write("\n".join(filecontents))
+
+
+
 def apply_game_vfs(variables):
     global prettyprint_total, vfs_log
 
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         if entry["path"] == "[inis]" and parsebool(variables.get("link_inis", "false")) is not True:
             continue
 
@@ -997,6 +1072,21 @@ def unvfs(p):
         logfile.write(json.dumps(log))
 
 
+def get_modpaths(args):
+    modpaths = []
+
+    lines = []
+    with open(winpath(os.path.join(args["mo_profile"], 'modlist.txt'))) as f:
+        lines = f.readlines()
+
+    for i in lines:
+        if i.startswith('+'):  # only enabled mods
+            modpaths.append(i[1:].strip())
+
+    reversed_modpaths = list(reversed(modpaths))
+    return reversed_modpaths
+
+
 def parsebool(value):
     lowervalue = value.lower().strip()
     if lowervalue == "true":
@@ -1011,15 +1101,27 @@ boolargs = [
     "generate_config"
 ]
 
+swallowargs = [
+    "run"
+]
+
 def parseargs():
     currentarg = None
     variables = {}
+    in_swallow = None
     for arg in sys.argv[1:]:
+        if in_swallow is not None:
+            variables[in_swallow].append(arg)
+            continue
         if arg.startswith("--") and currentarg is None:
             currentarg = arg[2:]
             if currentarg.lower() in boolargs:
                 variables[currentarg] = True
                 currentarg = None
+            elif currentarg.lower() in swallowargs:
+                variables[currentarg] = []
+                in_swallow = currentarg
+                continue
         elif currentarg is not None:
             variables[currentarg] = arg
             currentarg = None
@@ -1037,7 +1139,7 @@ if __name__ == '__main__':
 
     if game is not None:
         gamename = game
-        game = games[game]
+        game = games[gamename]
 
     if game is None:
         perr("Unable to detect game (use `--game' to specify)")
@@ -1061,6 +1163,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         entry["dest"] = apply_variables(entry["dest"], args)
         entry["path"] = apply_variables(entry["path"], args)
 
@@ -1074,8 +1179,42 @@ if __name__ == '__main__':
         def iodelay(s):
             time.sleep(s)
 
+    if "run" in game["vars"]:
+        if "winevfs" not in game["vars"]:
+            perr("winevfs cannot be found, specify with the `winevfs' option")
+            sys.exit(1)
+
+        if "cwd" not in game["vars"]:
+            game["vars"]["cwd"] = game["vars"]["game_path"]
+        os.chdir(game["vars"]["cwd"])
+
+        write_winevfs_file(args)
+
+        os.environ["WINEVFS_VFSFILE"] = "/tmp/.movfs4l_winevfs"
+        os.environ["WINEPREFIX"] = game["vars"]["wineprefix"]
+
+        commandline = [game["vars"]["winevfs"]] + game["vars"]["run"]
+
+        pwarn("Running `wineserver -w', this will hang until all wine processes have quit")
+        pwarn("Do not run ModOrganizer until all wine processes are finished")
+        subprocess.call(["wineserver", "-w"], env=os.environ)
+        subprocess.call(["wineserver", "-k"], env=os.environ)
+
+        status = subprocess.call(commandline, env=os.environ)
+
+        pwarn("Running `wineserver -w', this will hang until all wine processes have quit")
+        pwarn("Do not run ModOrganizer until all wine processes are finished")
+        subprocess.call(["wineserver", "-w"], env=os.environ)
+        subprocess.call(["wineserver", "-k"], env=os.environ)
+        plog("Finished")
+
+        sys.exit(status)
+
     plog('Removing VFS layer')
     for entry in game["vfs"]:
+        if "disabled" in entry:
+            continue
+
         if entry["path"] == "[mods]":
             plog_indent += 1
             unvfs(entry["dest"])
@@ -1085,12 +1224,13 @@ if __name__ == '__main__':
         sys.exit(0)
 
     plog('Parsing MO mods configuration')
-    modpaths = []
+    """modpaths = []
     for i in open(winpath(os.path.join(args["mo_profile"], 'modlist.txt'))).readlines():
         if i.startswith('+'):  # only enabled mods
             modpaths.append(i[1:].strip())
 
-    modpaths = list(reversed(modpaths))
+    modpaths = list(reversed(modpaths))"""
+    modpaths = get_modpaths(args)
 
     plog('Creating VFS index')
     prettyprint_total = len(modpaths) + 1
