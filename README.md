@@ -109,7 +109,7 @@ through the `--cwd` option:
      but it never hurts to double-check with a process monitor.
  * Winevfs is still in development. Most applications are tested to work (Skyrim, Fallout 4/NV, FNIS, BodySlide),
    but there are still a few that don't (notably Nemesis Unlimited Behavior Engine, due to thread races I have not yet fixed).
-   If you run across any problems using it, please leave an issue [in the issue tracker](https://github.com/qsniyg/winevfs/issues).
+   If you run across any problems using it, please leave an issue [in the issue tracker for winevfs](https://github.com/qsniyg/winevfs/issues).
  * Never run Mod Organizer with winevfs. Mod Organizer should always be run completely separate from movfs4l.py.
 
 ## Why ...?
