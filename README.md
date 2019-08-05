@@ -112,7 +112,7 @@ through the `--cwd` option:
    If you run across any problems using it, please leave an issue [in the issue tracker](https://github.com/qsniyg/winevfs/issues).
  * Never run Mod Organizer with winevfs. Mod Organizer should always be run completely separate from movfs4l.py.
 
-## Why *?
+## Why ...?
 
 ### Why not use an older version of Mod Organizer?
 
