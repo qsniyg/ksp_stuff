@@ -585,7 +585,8 @@ def get_default_variables(variables):
         "mo_profile": "{mo_gameroot}/profiles/{profile}",
         "mo_mods": "{mo_gameroot}/mods",
         "mo_overwrite": "{mo_gameroot}/overwrite",
-        "link_inis": "false"
+        "link_inis": "false",
+        "fake_inis": "false"
     }
 
     for var in defaults:
@@ -700,7 +701,8 @@ def generate_config(variables, inipath, config=None):
 
         config["general"] = {
             "iodelay": True,
-            "link_inis": True
+            "link_inis": True,
+            "fake_inis": False
         }
 
     for game_path in games:
@@ -918,8 +920,38 @@ def apply_vfs(vfs, rootDir, vfs_path, log):
 vfs_log = {'dirs': [], 'links': [], 'backups': []}
 
 
+def get_fake_inis(variables):
+    # TODO: this only works for .inis that are in the same directory as the mod
+    if parsebool(variables.get("fake_inis", "false")) is not True:
+        return []
+
+    modlist = get_modpaths(variables)
+    fakeinis = []
+
+    for mod in modlist:
+        modpath = winpath(os.path.join(args["mo_mods"], mod))
+
+        plugins = []
+        inis = []
+        for file_ in os.listdir(modpath):
+            lowerfile = file_.lower()
+
+            if lowerfile.endswith(".esm") or lowerfile.endswith(".esp"):
+                plugins.append(file_[:-4])
+
+            if lowerfile.endswith(".ini"):
+                inis.append(lowerfile[:-4])
+
+        for plugin in plugins:
+            if plugin.lower() not in inis:
+                fakeinis.append(plugin + ".INI")
+
+    return fakeinis
+
+
 def write_winevfs_file(variables):
     modlist = get_modpaths(variables)
+    fakeinis = get_fake_inis(variables)
 
     filecontents = []
     for entry in game["vfs"]:
@@ -929,6 +961,10 @@ def write_winevfs_file(variables):
         if entry["path"] == "[inis]" and parsebool(variables.get("link_inis", "false")) is not True:
             continue
         if entry["path"] == "[mods]":
+            for ini in fakeinis:
+                filecontents.append("R")
+                filecontents.append(winpath(os.path.join(entry["dest"], ini)))
+                filecontents.append("/dev/null")
             for mod in modlist:
                 filecontents.append("R")
                 filecontents.append(winpath(entry["dest"]))
@@ -956,6 +992,8 @@ def write_winevfs_file(variables):
 def apply_game_vfs(variables):
     global prettyprint_total, vfs_log
 
+    fakeinis = get_fake_inis(variables)
+
     for entry in game["vfs"]:
         if "disabled" in entry:
             continue
@@ -965,6 +1003,9 @@ def apply_game_vfs(variables):
 
         plog("Linking %s" % entry["name"])
         if entry["path"] == "[mods]":
+            for ini in fakeinis:
+                updatelink("/dev/null", winpath(os.path.join(entry["dest"], ini)), vfs_log)
+
             prettyprint_total = vfs_total
             t = start_prettyprint()
             apply_vfs(vfs, entry["dest"], "", vfs_log)
