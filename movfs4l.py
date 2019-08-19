@@ -381,6 +381,20 @@ game_infos = {
     }
 }
 
+game_binaries = [
+    "TESV.exe",
+    "SkyrimSE.exe",
+    "SkyrimVR.exe",
+    "Morrowind.exe",
+    "Oblivion.exe",
+    "Fallout3.exe",
+    "FalloutNV.exe",
+    "Fallout4.exe",
+    "Fallout4VR.exe"
+]
+
+game_binaries_csv = ",".join(game_binaries)
+
 
 def get_game_from_moroot(variables):
     moini = os.path.join(variables["mo_gameroot"], "ModOrganizer.ini")
@@ -954,6 +968,9 @@ def write_winevfs_file(variables):
     fakeinis = get_fake_inis(variables)
 
     filecontents = []
+
+    filecontents.append("?full=" + game_binaries_csv)
+
     for entry in game["vfs"]:
         if "disabled" in entry:
             continue
