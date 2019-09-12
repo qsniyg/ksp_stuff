@@ -1,3 +1,9 @@
+# Deprecation
+
+This repository is mostly deprecated, as this patchset will fix USVFS under wine: https://gist.github.com/qsniyg/ec21d68f9407991a1043a71fa6ffd4cf
+
+USVFS might also include a workaround for wine in its next release.
+
 # movfs4l.py
 
 movfs4l (Mod Organizer Virtual FileSystem For Linux) is a workaround for using MO2 under Linux,
