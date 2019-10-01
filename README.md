@@ -33,12 +33,10 @@ Right now, there are 2 supported methods:
      * Very fast to load and zero tear down needed
      * Doesn't pollute your mod directory
      * Only need to run FNIS/Nemesis when needed, other tools also work like they would under USVFS
-     * *Possibly* faster performance than native Wine (unless using Linux 5.3's case insensitivity for EXT4)
    * Cons:
      * Requires compiling and installing a 3rd-party program (winevfs)
-     * Currently not very well tested
-     * *Possibly* slower performance due to an extra layer added over all filesystem calls
-     * Currently some issues with heavily multi-threaded applications (Nemesis is affected)
+     * Currently not very well tested, and causes problems with FNIS/Nemesis+Skyrim
+     * Slower performance due to an extra layer added over all filesystem calls
      * Slightly higher memory usage (shouldn't be too significant)
      * Requires all wine applications to be closed before and after running a program with it.
        Since wineserver needs to be hooked by winevfs, if any program using the hooked wineserver
