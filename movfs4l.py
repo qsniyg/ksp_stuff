@@ -291,6 +291,7 @@ game_infos = {
 
         "vars": {
             "gameappdata": "{localappdata}/Skyrim Special Edition",
+            "game_userdir": "{mygames_root}/Skyrim Special Edition"
         },
 
         "inis": [
@@ -390,7 +391,9 @@ game_binaries = [
     "Fallout3.exe",
     "FalloutNV.exe",
     "Fallout4.exe",
-    "Fallout4VR.exe"
+    "Fallout4VR.exe",
+
+    "Nemesis Unlimited Behavior Engine.exe"
 ]
 
 game_binaries_csv = ",".join(game_binaries)
