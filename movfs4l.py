@@ -539,11 +539,17 @@ def find_mygames(variables):
     if "mygames_root" in variables:
         return
 
+    found = False
+
     for path in searchpaths:
         fullpath = winpath(os.path.join(variables["winehome"], path, "My Games"))
         if os.path.exists(fullpath):
             variables["mygames_root"] = fullpath
+            found = True
             break
+
+    if not found:
+        pwarn("Unable to find My Games")
 
 
 def find_mo_installroot(variables):
