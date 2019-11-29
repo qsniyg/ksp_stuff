@@ -1,8 +1,8 @@
 # Deprecation
 
-This repository is mostly deprecated, as this patchset will fix USVFS under wine: https://gist.github.com/qsniyg/ec21d68f9407991a1043a71fa6ffd4cf
+~~This repository is mostly deprecated, as this patchset will fix USVFS under wine: https://gist.github.com/qsniyg/ec21d68f9407991a1043a71fa6ffd4cf .~~
 
-USVFS might also include a workaround for wine in its next release.
+Wine 4.21 includes both patches in the above patchset.
 
 # movfs4l.py
 
