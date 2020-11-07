@@ -399,11 +399,22 @@ game_binaries = [
 game_binaries_csv = ",".join(game_binaries)
 
 
+# based on code shared by smirgol: https://github.com/qsniyg/ksp_stuff/issues/31
+def remove_bytearray(var):
+    newvar = re.sub(r"^@ByteArray\(", "", var)
+    if newvar == var:
+        return var
+
+    return re.sub(r"\)$", "", var)
+
+
 def get_game_from_moroot(variables):
     moini = os.path.join(variables["mo_gameroot"], "ModOrganizer.ini")
 
     config = configparser.ConfigParser()
     config.read(moini)
+
+    config["General"]["gamePath"] = remove_bytearray(config["General"]["gamePath"])
 
     variables["game_name"] = config["General"]["gameName"]
     variables["game_type"] = variables["game_name"]
