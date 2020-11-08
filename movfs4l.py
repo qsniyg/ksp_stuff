@@ -19,6 +19,12 @@ except Exception:
 def iodelay(s):
     pass
 
+"""
+Ideas:
+- if file exists and is not in log, don't overwrite (NFIS, Caliente)
+- convert all directories to lowerpath - always bugged me
+"""
+
 
 use_lower = False
 pathcache = {}
@@ -53,6 +59,8 @@ def create_link(src, dst):
 
 def remove_link(path):
     global use_hardlinks, vfs_log
+    if not os.path.exists(path):
+        return
     if use_hardlinks:
         if (is_link(path)):
             os.remove(path)
