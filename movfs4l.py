@@ -405,7 +405,7 @@ def remove_bytearray(var):
     if newvar == var:
         return var
 
-    return re.sub(r"\)$", "", var)
+    return re.sub(r"\)$", "", newvar)
 
 
 def get_game_from_moroot(variables):
