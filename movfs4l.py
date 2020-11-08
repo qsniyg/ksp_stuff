@@ -441,10 +441,8 @@ game_binaries_csv = ",".join(game_binaries)
 # based on code shared by smirgol: https://github.com/qsniyg/ksp_stuff/issues/31
 def remove_bytearray(var):
     newvar = re.sub(r"^@ByteArray\(", "", var)
-    print(var)
-    print(newvar)
     if newvar == var:
-       return var
+        return var
 
     return re.sub(r"\)$", "", newvar)
 
@@ -456,7 +454,7 @@ def get_game_from_moroot(variables):
     config.read(moini)
 
     config["General"]["gamePath"] = remove_bytearray(config["General"]["gamePath"])
-    print(config["General"]["gamePath"])
+
     variables["game_name"] = config["General"]["gameName"]
     variables["game_type"] = variables["game_name"]
     variables["game_path"] = winepath(variables["wineprefix"], config["General"]["gamePath"])
@@ -1307,6 +1305,7 @@ if __name__ == '__main__':
         perr("Profile directory does not exist: %s" % args["mo_profile"])
         sys.exit(1)
 
+    plog('Removing VFS layer')
     for entry in game["vfs"]:
         if "disabled" in entry:
             continue
