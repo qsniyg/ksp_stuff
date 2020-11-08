@@ -22,6 +22,45 @@ def iodelay(s):
 
 use_lower = False
 pathcache = {}
+use_hardlinks = False
+vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False}
+
+
+def is_link(path):
+    global use_hardlinks, vfs_log
+    """
+    if use_hardlinks:
+        if len(vfs_log) > 0 and "links" in vfs_log and len(vfs_log["links"]) > 0 and path in vfs_log["links"]:
+            return True
+        else:
+            return False
+    else:
+        return os.path.islink(path)
+    """
+    if os.path.islink(path):
+        return True
+    elif len(vfs_log) > 0 and "links" in vfs_log and len(vfs_log["links"]) > 0 and path in vfs_log["links"]:
+        return True
+    return False;
+
+def create_link(src, dst):
+    global use_hardlinks, vfs_log
+    if use_hardlinks:
+        os.link(src, dst)
+    else:
+        os.symlink(src, dst)
+    return
+
+def remove_link(path):
+    global use_hardlinks, vfs_log
+    if use_hardlinks:
+        if (is_link(path)):
+            os.remove(path)
+    else:
+        os.unlink(path)
+    return
+
+
 
 
 def normpath(path):
@@ -402,8 +441,10 @@ game_binaries_csv = ",".join(game_binaries)
 # based on code shared by smirgol: https://github.com/qsniyg/ksp_stuff/issues/31
 def remove_bytearray(var):
     newvar = re.sub(r"^@ByteArray\(", "", var)
+    print(var)
+    print(newvar)
     if newvar == var:
-        return var
+       return var
 
     return re.sub(r"\)$", "", newvar)
 
@@ -415,7 +456,7 @@ def get_game_from_moroot(variables):
     config.read(moini)
 
     config["General"]["gamePath"] = remove_bytearray(config["General"]["gamePath"])
-
+    print(config["General"]["gamePath"])
     variables["game_name"] = config["General"]["gameName"]
     variables["game_type"] = variables["game_name"]
     variables["game_path"] = winepath(variables["wineprefix"], config["General"]["gamePath"])
@@ -620,7 +661,8 @@ def get_default_variables(variables):
         "mo_mods": "{mo_gameroot}/mods",
         "mo_overwrite": "{mo_gameroot}/overwrite",
         "link_inis": "false",
-        "fake_inis": "false"
+        "fake_inis": "false",
+        "hard_links": False
     }
 
     for var in defaults:
@@ -767,6 +809,7 @@ def generate_config(variables, inipath, config=None):
 
     with open(inipath, 'w') as inifile:
         config.write(inifile)
+        inifile.close()
 
     plog_indent -= 1
     plog("Written auto-generated configuration to `config.ini'. %s" % (
@@ -951,9 +994,6 @@ def apply_vfs(vfs, rootDir, vfs_path, log):
             apply_vfs(item_obj, rootDir, os.path.join(vfs_path, item_obj["name"]), log)
 
 
-vfs_log = {'dirs': [], 'links': [], 'backups': []}
-
-
 def get_fake_inis(variables):
     # TODO: this only works for .inis that are in the same directory as the mod
     if parsebool(variables.get("fake_inis", "false")) is not True:
@@ -1023,6 +1063,7 @@ def write_winevfs_file(variables):
 
     with open("/tmp/.movfs4l_winevfs", 'w') as f:
         f.write("\n".join(filecontents))
+        f.close()
 
 
 
@@ -1059,13 +1100,14 @@ def write_vfs_log():
     plog('Writing log')
     with open(game["vars"]["vfs_meta_log"], 'w') as logfile:
         logfile.write(json.dumps(vfs_log))
+        logfile.close()
 
 
 def updatelink(src, dest, log):
     iodelay(0.0015)
     dest = winpath(dest)
-    if os.path.islink(dest):
-        os.unlink(dest)
+    if is_link(dest):
+        remove_link(dest)
     elif os.path.exists(dest):
         shutil.move(dest, '%s.unvfs' % dest)
         log['backups'].append(dest)
@@ -1076,8 +1118,7 @@ def updatelink(src, dest, log):
     if src.lower().endswith(".exe"):
         shutil.copyfile(src, dest)
     else:
-        os.symlink(src, dest)
-
+        create_link(src, dest)
 
 def mktree(root, path, log):
     iodelay(0.001)
@@ -1091,39 +1132,43 @@ def mktree(root, path, log):
 
 
 def unvfs(p):
-    global prettyprint_total
+    global prettyprint_total, vfs_log
 
     logpath = winpath(game["vars"]["vfs_meta_log"])
     if not os.path.exists(logpath):
+        perr("Logfile does not exist. Unable to execute unvfs!")
         return
 
     plog("Reading VFS meta log")
 
-    log = {}
+    #log = {}
 
-    with open(logpath) as logfile:
-        log = json.loads(logfile.read())
+    #with open(logpath) as logfile:
+    #    log = json.loads(logfile.read())
+    #    logfile.close()
 
     head = p + "/"
 
     plog("Removing links")
-    prettyprint_total = len(log['links'])
+    prettyprint_total = len(vfs_log['links'])
     t = start_prettyprint()
     i = 1
-    for l in log['links']:
+    for l in vfs_log['links']:
         l = winpath(l)
-        if os.path.islink(l):
+        if is_link(l):
             prettyprint(i, l.replace(head, ""))
             iodelay(0.0005)
-            os.unlink(l)
+            remove_link(l)
+        else:
+            print("not a link: ", l)
         i += 1
     stop_prettyprint(t)
 
     plog("Removing directories")
-    prettyprint_total = len(log['dirs'])
+    prettyprint_total = len(vfs_log['dirs'])
     t = start_prettyprint()
     i = 1
-    for d in log['dirs']:
+    for d in vfs_log['dirs']:
         d = winpath(d)
         if os.path.isdir(d):
             if not os.listdir(d):
@@ -1133,10 +1178,10 @@ def unvfs(p):
     stop_prettyprint(t)
 
     plog("Restoring backups")
-    prettyprint_total = len(log['backups'])
+    prettyprint_total = len(vfs_log['backups'])
     t = start_prettyprint()
     i = 1
-    for b in log.get('backups', []):
+    for b in vfs_log.get('backups', []):
         b = winpath(b)
         prettyprint(i, b.replace(head, ""))
         shutil.move('%s.unvfs' % b, b)
@@ -1144,10 +1189,11 @@ def unvfs(p):
     stop_prettyprint(t)
 
     plog("Clearing log")
-    log = {'dirs': [], 'links': [], 'backups': []}
+    vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False}
 
     with open(logpath, 'w') as logfile:
-        logfile.write(json.dumps(log))
+        logfile.write(json.dumps(vfs_log))
+        logfile.close()
 
 
 def get_modpaths(args):
@@ -1156,6 +1202,7 @@ def get_modpaths(args):
     lines = []
     with open(winpath(os.path.join(args["mo_profile"], 'modlist.txt'))) as f:
         lines = f.readlines()
+        f.close()
 
     for i in lines:
         if i.startswith('+'):  # only enabled mods
@@ -1176,7 +1223,8 @@ def parsebool(value):
 
 boolargs = [
     "unvfs",
-    "generate_config"
+    "generate_config",
+    'hard_links'
 ]
 
 swallowargs = [
@@ -1236,6 +1284,25 @@ if __name__ == '__main__':
     get_default_variables(args)
     fill_variables(args)
 
+    if os.path.isfile(game["vars"]["vfs_meta_log"]):
+        plog('Reading log')
+        with open(game["vars"]["vfs_meta_log"], 'r') as logfile:
+            vfs_log = json.load(logfile)
+            logfile.close()
+
+    use_hardlinks = args["hard_links"]
+
+    # @TODO: this needs more checks to actually work
+    # When requesting to unlink, check the log if the links were created
+    # with hardlinks. This is to make sure we correctly remove them even
+    # if the user has forgotten the --hard_links arg
+    if "unvfs" in args:
+        if "hard_links" in vfs_log and "hard_links" not in args:
+            use_hardlinks = vfs_log["hard_links"]
+            print("Log use hard: ", use_hardlinks)
+
+    #sys.exit(0)
+
     if not os.path.exists(winpath(args["mo_profile"])):
         perr("Profile directory does not exist: %s" % args["mo_profile"])
         sys.exit(1)
@@ -1288,7 +1355,6 @@ if __name__ == '__main__':
 
         sys.exit(status)
 
-    plog('Removing VFS layer')
     for entry in game["vfs"]:
         if "disabled" in entry:
             continue
@@ -1300,6 +1366,8 @@ if __name__ == '__main__':
 
     if "unvfs" in args and args["unvfs"] is True:
         sys.exit(0)
+
+    vfs_log["hard_links"] = use_hardlinks
 
     plog('Parsing MO mods configuration')
     """modpaths = []
