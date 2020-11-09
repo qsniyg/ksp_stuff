@@ -23,6 +23,7 @@ def iodelay(s):
 use_lower = False
 pathcache = {}
 use_hardlinks = False
+overwrite_existing = False
 vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False, 'timestamp' : 0}
 
 
@@ -676,7 +677,8 @@ def get_default_variables(variables):
         "mo_overwrite": "{mo_gameroot}/overwrite",
         "link_inis": "false",
         "fake_inis": "false",
-        "hard_links": False
+        "hard_links": False,
+        "overwrite_existing": False
     }
 
     for var in defaults:
@@ -1115,13 +1117,20 @@ def write_vfs_log():
 
 
 def updatelink(src, dest, log):
+    global overwrite_existing
     iodelay(0.0015)
     dest = winpath(dest)
     if is_link(dest):
         remove_link(dest)
     elif os.path.exists(dest):
-        shutil.move(dest, '%s.unvfs' % dest)
-        log['backups'].append(dest)
+        if overwrite_existing == False:
+            plog("Skipping update of existing file %s" % (
+                dest
+            ))
+            return
+
+    shutil.move(dest, '%s.unvfs' % dest)
+    log['backups'].append(dest)
     log['links'].insert(0, dest)
     #print ('Linking "%s" to "%s"' % (src, dest))
 
@@ -1225,7 +1234,8 @@ def parsebool(value):
 boolargs = [
     "unvfs",
     "generate_config",
-    'hard_links'
+    'hard_links',
+    'overwrite_existing'
 ]
 
 swallowargs = [
@@ -1291,17 +1301,14 @@ if __name__ == '__main__':
             vfs_log = json.load(logfile)
 
     use_hardlinks = args["hard_links"]
+    overwrite_existing = args["overwrite_existing"]
 
-    # @TODO: this needs more checks to actually work
     # When requesting to unlink, check the log if the links were created
     # with hardlinks. This is to make sure we correctly remove them even
     # if the user has forgotten the --hard_links arg
     if "unvfs" in args:
         if "hard_links" in vfs_log and "hard_links" not in args:
             use_hardlinks = vfs_log["hard_links"]
-            print("Log use hard: ", use_hardlinks)
-
-    #sys.exit(0)
 
     if not os.path.exists(winpath(args["mo_profile"])):
         perr("Profile directory does not exist: %s" % args["mo_profile"])
