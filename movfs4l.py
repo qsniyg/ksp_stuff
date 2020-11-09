@@ -65,7 +65,7 @@ def remove_link(path):
 
     # if file was modified after we have linked, don't remove it (FNIS/CBBE)
     # only do this for files in Data, always unlink like modlist, plugins, loadorder, inis
-    if "timestamp" in vfs_log and vfs_log["timestamp"] > 0 and os.path.getmtime(path) > vfs_log["timestamp"] + 60 and ('Data' in path or 'data' in path):
+    if "timestamp" in vfs_log and vfs_log["timestamp"] > 0 and os.path.getmtime(path) > vfs_log["timestamp"] + 60 and ('/Data' in path or '/data' in path):
         plog("File is newer than linking date: %s" % (
             path
         ))
