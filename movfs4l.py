@@ -23,35 +23,31 @@ def iodelay(s):
 use_lower = False
 pathcache = {}
 use_hardlinks = False
-vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False}
+vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False, 'timestamp' : 0}
+
 
 def is_in_log(path):
+    global vfs_log
+
     if len(vfs_log) > 0 and "links" in vfs_log and len(vfs_log["links"]) > 0 and path in vfs_log["links"]:
         if path in vfs_log["links"]:
             return True
     return False
 
+
 def is_link(path):
-    global use_hardlinks, vfs_log
-    """
-    if use_hardlinks:
-        if len(vfs_log) > 0 and "links" in vfs_log and len(vfs_log["links"]) > 0 and path in vfs_log["links"]:
-            return True
-        else:
-            return False
-    else:
-        return os.path.islink(path)
-    """
+    global use_hardlinks
+
     if os.path.islink(path):
         return True
-
     return is_in_log(path)
 
+
 def create_link(src, dst):
-    global use_hardlinks, vfs_log
+    global use_hardlinks
+
     # check if the file already exists. if it does and is not a link, don't overwrite
     if os.path.exists(dst) and not is_in_log(dst):
-        plog("File exists and is not a link: ", dst)
         return
 
     if use_hardlinks:
@@ -60,18 +56,27 @@ def create_link(src, dst):
         os.symlink(src, dst)
     return
 
+
 def remove_link(path):
     global use_hardlinks, vfs_log
+
     if not os.path.exists(path):
         return
+
+    # if file was modified after we have linked, don't remove it (FNIS/CBBE)
+    # only do this for files in Data, always unlink like modlist, plugins, loadorder, inis
+    if "timestamp" in vfs_log and vfs_log["timestamp"] > 0 and os.path.getmtime(path) > vfs_log["timestamp"] + 60 and ('Data' in path or 'data' in path):
+        plog("File is newer than linking date: %s" % (
+            path
+        ))
+        return
+
     if use_hardlinks:
         if (is_in_log(path)):
             os.remove(path)
     else:
         os.unlink(path)
     return
-
-
 
 
 def normpath(path):
@@ -818,7 +823,6 @@ def generate_config(variables, inipath, config=None):
 
     with open(inipath, 'w') as inifile:
         config.write(inifile)
-        inifile.close()
 
     plog_indent -= 1
     plog("Written auto-generated configuration to `config.ini'. %s" % (
@@ -1072,7 +1076,6 @@ def write_winevfs_file(variables):
 
     with open("/tmp/.movfs4l_winevfs", 'w') as f:
         f.write("\n".join(filecontents))
-        f.close()
 
 
 
@@ -1109,7 +1112,6 @@ def write_vfs_log():
     plog('Writing log')
     with open(game["vars"]["vfs_meta_log"], 'w') as logfile:
         logfile.write(json.dumps(vfs_log))
-        logfile.close()
 
 
 def updatelink(src, dest, log):
@@ -1150,12 +1152,6 @@ def unvfs(p):
 
     plog("Reading VFS meta log")
 
-    #log = {}
-
-    #with open(logpath) as logfile:
-    #    log = json.loads(logfile.read())
-    #    logfile.close()
-
     head = p + "/"
 
     plog("Removing links")
@@ -1168,8 +1164,6 @@ def unvfs(p):
             prettyprint(i, l.replace(head, ""))
             iodelay(0.0005)
             remove_link(l)
-        else:
-            print("not a link: ", l)
         i += 1
     stop_prettyprint(t)
 
@@ -1198,11 +1192,10 @@ def unvfs(p):
     stop_prettyprint(t)
 
     plog("Clearing log")
-    vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False}
+    vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False, 'timestamp' : 0}
 
     with open(logpath, 'w') as logfile:
         logfile.write(json.dumps(vfs_log))
-        logfile.close()
 
 
 def get_modpaths(args):
@@ -1211,7 +1204,6 @@ def get_modpaths(args):
     lines = []
     with open(winpath(os.path.join(args["mo_profile"], 'modlist.txt'))) as f:
         lines = f.readlines()
-        f.close()
 
     for i in lines:
         if i.startswith('+'):  # only enabled mods
@@ -1297,7 +1289,6 @@ if __name__ == '__main__':
         plog('Reading log')
         with open(game["vars"]["vfs_meta_log"], 'r') as logfile:
             vfs_log = json.load(logfile)
-            logfile.close()
 
     use_hardlinks = args["hard_links"]
 
@@ -1405,6 +1396,7 @@ if __name__ == '__main__':
     stop_prettyprint(t)
 
     apply_game_vfs(args)
+    vfs_log["timestamp"] = time.time()
     write_vfs_log()
 
     print("")
