@@ -19,18 +19,17 @@ except Exception:
 def iodelay(s):
     pass
 
-"""
-Ideas:
-- if file exists and is not in log, don't overwrite (NFIS, Caliente)
-- convert all directories to lowerpath - always bugged me
-"""
-
 
 use_lower = False
 pathcache = {}
 use_hardlinks = False
 vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False}
 
+def is_in_log(path):
+    if len(vfs_log) > 0 and "links" in vfs_log and len(vfs_log["links"]) > 0 and path in vfs_log["links"]:
+        if path in vfs_log["links"]:
+            return True
+    return False
 
 def is_link(path):
     global use_hardlinks, vfs_log
@@ -45,12 +44,16 @@ def is_link(path):
     """
     if os.path.islink(path):
         return True
-    elif len(vfs_log) > 0 and "links" in vfs_log and len(vfs_log["links"]) > 0 and path in vfs_log["links"]:
-        return True
-    return False;
+
+    return is_in_log(path)
 
 def create_link(src, dst):
     global use_hardlinks, vfs_log
+    # check if the file already exists. if it does and is not a link, don't overwrite
+    if os.path.exists(dst) and not is_in_log(dst):
+        plog("File exists and is not a link: ", dst)
+        return
+
     if use_hardlinks:
         os.link(src, dst)
     else:
@@ -62,7 +65,7 @@ def remove_link(path):
     if not os.path.exists(path):
         return
     if use_hardlinks:
-        if (is_link(path)):
+        if (is_in_log(path)):
             os.remove(path)
     else:
         os.unlink(path)
