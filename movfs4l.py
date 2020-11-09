@@ -1128,9 +1128,9 @@ def updatelink(src, dest, log):
                 dest
             ))
             return
+        shutil.move(dest, '%s.unvfs' % dest)
+        log['backups'].append(dest)
 
-    shutil.move(dest, '%s.unvfs' % dest)
-    log['backups'].append(dest)
     log['links'].insert(0, dest)
     #print ('Linking "%s" to "%s"' % (src, dest))
 
