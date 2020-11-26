@@ -82,6 +82,32 @@ When you want to run MO2 again, run the same command again, this time with `--un
 
 This will remove the symlinks, allowing you to run MO2.
 
+
+Should you experience slowdowns with the usage of symlinks, there is an option to create hardlinks instead.
+Please note that this only works if both, MO2 and your game, are on the same drive.
+To create hardlinks, add this parameter to the first command above:
+
+    --hard_links
+
+
+Then, by default, when you unlink your mod files, all changes made to them by e.g. BodySlide, FNIS or similar
+will be lost - you will need to re-run these tools after linking your mods again.
+In order to preserve those changed files, add this parameter when _unlinking_:
+
+    --keep_modified_files
+
+In addition, when you relink your mods where you have kept the modified files, you need to add this parameter
+when you do the _linking_:
+
+    --overwrite_existing
+
+The reason is, that by default this script will backup any file that is going to be overwritten by a mod file.
+This makes sure that, after unlinking, the game files are like they were before you used have this script.
+By nature this will also backup any existing file that you have kept when you unlinked your mods, like files 
+modified by BodySlide, FNIS or the like. By using this parameter it will disable creating these backups.
+While this _should_ not cause problems, please use both, --keep_modified_files and --overwrite_existing at your own risk.
+
+
 ### With winevfs
 
 Compile winevfs [as shown in the project's description](https://github.com/qsniyg/winevfs), then
