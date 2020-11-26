@@ -23,7 +23,8 @@ def iodelay(s):
 use_lower = False
 pathcache = {}
 use_hardlinks = False
-overwrite_existing = False
+overwrite_existing = True
+keep_modified_files = False
 vfs_log = {'dirs': [], 'links': [], 'backups': [], 'hard_links' : False, 'timestamp' : 0}
 
 
@@ -58,16 +59,23 @@ def create_link(src, dst):
     return
 
 
+def is_modified_file(path):
+    global vfs_log
+    if "timestamp" in vfs_log and vfs_log["timestamp"] > 0 and os.path.getmtime(path) > vfs_log["timestamp"] + 60 and ('/Data' in path or '/data' in path):
+        return True
+    return False
+
+
 def remove_link(path):
-    global use_hardlinks, vfs_log
+    global use_hardlinks, vfs_log, keep_modified_files
 
     if not os.path.exists(path):
         return
 
     # if file was modified after we have linked, don't remove it (FNIS/CBBE)
     # only do this for files in Data, always unlink like modlist, plugins, loadorder, inis
-    if "timestamp" in vfs_log and vfs_log["timestamp"] > 0 and os.path.getmtime(path) > vfs_log["timestamp"] + 60 and ('/Data' in path or '/data' in path):
-        plog("File is newer than linking date: %s" % (
+    if keep_modified_files == True and is_modified_file(path):
+        plog("File is newer than linking date, not removing: %s" % (
             path
         ))
         return
@@ -678,7 +686,8 @@ def get_default_variables(variables):
         "link_inis": "false",
         "fake_inis": "false",
         "hard_links": False,
-        "overwrite_existing": False
+        "overwrite_existing": True,
+        'keep_modified_files': False
     }
 
     for var in defaults:
@@ -1196,7 +1205,10 @@ def unvfs(p):
     for b in vfs_log.get('backups', []):
         b = winpath(b)
         prettyprint(i, b.replace(head, ""))
-        shutil.move('%s.unvfs' % b, b)
+        if keep_modified_files == False or is_modified_file(b) == False:
+            shutil.move('%s.unvfs' % b, b)
+        else:
+            os.remove('%s.unvfs' % b)
         i += 1
     stop_prettyprint(t)
 
@@ -1235,7 +1247,8 @@ boolargs = [
     "unvfs",
     "generate_config",
     'hard_links',
-    'overwrite_existing'
+    'overwrite_existing',
+    'keep_modified_files'
 ]
 
 swallowargs = [
@@ -1302,6 +1315,7 @@ if __name__ == '__main__':
 
     use_hardlinks = args["hard_links"]
     overwrite_existing = args["overwrite_existing"]
+    keep_modified_files = args["keep_modified_files"]
 
     # When requesting to unlink, check the log if the links were created
     # with hardlinks. This is to make sure we correctly remove them even
